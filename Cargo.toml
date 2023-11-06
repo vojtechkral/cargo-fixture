@@ -1,0 +1,108 @@
+[package]
+name = "cargo-fixture"
+version = "1.0.0"
+authors = ["Vojtech Kral"]
+description = "Surround cargo test with arbitrary Rust setup and teardown code."
+license = "Apache-2.0"
+keywords = ["rust", "cargo", "testing"]
+edition = "2021"
+
+rust-version = "1.65"
+
+[[bin]]
+name = "cargo-fixture"
+
+[workspace]
+members = [
+    "crates/lib",
+    "crates/macros",
+]
+exclude = [
+    "examples",
+]
+
+[workspace.dependencies]
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+smol = "1.3.0"
+strum = { version = "0.25.0", features = ["derive"] }
+thiserror = "1"
+
+[dependencies]
+anyhow = "1"
+ctrlc = "3.4.2"
+futures-util = "0.3.29"
+log.workspace = true
+os_str_bytes = { version = "6.6", features = ["conversions"] }
+serde_json.workspace = true
+serde.workspace = true
+smol.workspace = true
+strum.workspace = true
+tabular = "0.2.0"
+thiserror.workspace = true
+
+cargo-fixture-lib = { version = "=1.0.0", features = ["smol"] }
+
+# Tests
+
+[dev-dependencies]
+smol-potat = "1.1.2"
+[target.'cfg(unix)'.dev-dependencies]
+nix = { version = "0.27.1", features = ["signal"] }
+
+[features]
+_fixture = []
+
+# A small util that saves args passed to it
+[[test]]
+name = "print_args"
+test = false
+harness = false
+
+# Testing fixtures
+
+[[test]]
+name = "fixture_env_var"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_failing_test"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_kv"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_panic_init"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_panic_connected"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_panic_cleanup"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_hang_cleanup"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_args"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_serial"
+test = false
+harness = false

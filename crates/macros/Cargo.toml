@@ -1,0 +1,16 @@
+[package]
+name = "cargo-fixture-macros"
+version = "1.0.0"
+authors = ["Vojtech Kral <vojtech@kral.pm>"]
+description = "Macros for the cargo-fixture cargo extension"
+license = "Apache-2.0"
+keywords = ["rust", "cargo", "testing"]
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1"
+proc-macro2 = "1"
+syn = { version = "2", features = ["full"] }

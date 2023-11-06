@@ -1,0 +1,282 @@
+on: [push, pull_request]
+
+name: CI
+
+env:
+  CARGO_OUTDATED: 0.14.0
+  CARGO_AUDIT: 0.18.3
+
+jobs:
+  fmt:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install rustfmt
+        run: rustup component add rustfmt
+      - name: Perform format check
+        run: cargo fmt -- --check
+      - name: Format check (http example)
+        working-directory: ./examples/http
+        run: cargo fmt -- --check
+      - name: Format check (docker example)
+        working-directory: ./examples/docker
+        run: cargo fmt -- --check
+
+  crates-versions:
+    name: Crates version check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Same version check
+        run: "[[ `cargo metadata --format-version=1 --no-deps | jq '.packages[].version' | sort -u | wc -l` == 1 ]]"
+
+  lints:
+    name: Lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+          override: true
+      - name: Cache cargo tools
+        id: cargo-tools-cache
+        uses: actions/cache@v3
+        with:
+          path: cargo-tools
+          key: lint-tools-${{ env.CARGO_OUTDATED }}-${{ env.CARGO_AUDIT }}
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: lint-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Install cargo tools if not cached
+        if: steps.cargo-tools-cache.outputs.cache-hit != 'true'
+        run: |
+          cargo install cargo-outdated --version ${{ env.CARGO_OUTDATED }} --root cargo-tools --target-dir cargo-tools-build
+          cargo install cargo-audit --version ${{ env.CARGO_AUDIT }} --root cargo-tools --target-dir cargo-tools-build
+      - name: Clippy
+        run: cargo clippy --no-deps -- -D warnings
+      - name: Outdated dependencies
+        # TODO: add support for githubActions format in cargo-outdated directly?
+        shell: python
+        run: |
+          import json
+          import subprocess
+          import os
+
+          env = os.environ.copy()
+          env["PATH"] = os.getcwd() + "/cargo-tools/bin:" + env["PATH"]
+          ps = subprocess.Popen(['cargo', 'outdated', '--format', 'json'], stdout=subprocess.PIPE, env=env)
+          output = json.load(ps.stdout)
+          outdated = output['dependencies']
+
+          for dep in outdated:
+              msg = "{}: project: {}, compat: {}, latest: {}, kind: {}".format(dep['name'], dep['project'], dep['compat'], dep['latest'], dep['kind'])
+              print("::warning title=Outdated dependency '{}'::{}".format(dep['name'], msg))
+      - name: Audit
+        run: |
+          PATH="$PATH:$PWD/cargo-tools/bin" cargo audit
+
+  test-linux:
+    name: Test on Linux
+    needs: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Build
+        run: cargo build --locked
+      - name: Test
+        run: cargo test --locked -- --nocapture
+      - name: Upload linux binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cargo-fixture
+          path: target/debug/cargo-fixture
+          if-no-files-found: error
+
+  test-windows:
+    name: Test on Windows
+    needs: fmt
+    runs-on: windows-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Build
+        run: cargo build --locked
+      - name: Test
+        # tests must be run in one thread otherwise they attempt to overwrite each other's exe while building
+        run: cargo test --locked -- --nocapture --test-threads=1
+      - name: Upload linux binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cargo-fixture-exe
+          path: target/debug/cargo-fixture.exe
+          if-no-files-found: error
+
+  msrv:
+    name: MSRV check
+    needs: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Extract MSRV
+        id: get-msrv
+        run: echo msrv=$(yq .package.rust-version Cargo.toml -oy) | tee -a "$GITHUB_OUTPUT"
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ steps.get-msrv.outputs.msrv }}
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: msrv-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Perform MSRV check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked
+
+  examples-linux:
+    name: Run examples on Linux
+    needs: test-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            examples/docker/target
+            examples/http/target
+          key: examples-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Get cargo-fixture
+        uses: actions/download-artifact@v3
+        with:
+          name: cargo-fixture
+          path: ~/.cargo/bin
+      - name: chmod +x cargo-fixture
+        run: |
+          chmod +x ~/.cargo/bin/cargo-fixture
+          ls -l ~/.cargo/bin
+      - name: HTTP Example
+        working-directory: examples/http
+        run: cargo fixture
+      - name: Docker Example
+        working-directory: examples/docker
+        run: cargo fixture
+
+  examples-windows:
+    name: Run examples on Windows
+    needs: test-windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            examples/docker/target
+            examples/http/target
+          key: examples-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Get cargo-fixture
+        uses: actions/download-artifact@v3
+        with:
+          name: cargo-fixture-exe
+          path: ~/.cargo/bin
+      - name: HTTP Example
+        working-directory: examples/http
+        run: cargo fixture

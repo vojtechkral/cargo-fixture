@@ -1,0 +1,23 @@
+[package]
+name = "cargo-fixture-example-docker"
+version = "0.9.0"
+authors = ["Vojtech Kral"]
+description = "FIXME: descr"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.34.0", features = ["rt", "macros"] }
+tokio-postgres = "0.7.10"
+
+[features]
+_fixture = []
+
+[dev-dependencies]
+dockertest = "0.4.0"
+cargo-fixture-lib = { path = "../../crates/lib", features = ["tokio"] }  # FIXME: from crates
+
+[[test]]
+name = "fixture"
+test = false
+harness = false

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <marker
+       style="overflow:visible"
+       id="Triangle"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       markerWidth="2"
+       markerHeight="2"
+       viewBox="0 0 1 1"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:1pt"
+         d="M 5.77,0 -2.88,5 V -5 Z"
+         id="path135" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Dot"
+       refX="0"
+       refY="0"
+       orient="auto"
+       markerWidth="2"
+       markerHeight="2"
+       viewBox="0 0 1 1"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="M 5,0 C 5,2.76 2.76,5 0,5 -2.76,5 -5,2.76 -5,0 c 0,-2.76 2.3,-5 5,-5 2.76,0 5,2.24 5,5 z"
+         id="path17" />
+    </marker>
+    <rect
+       x="12.818092"
+       y="99.475175"
+       width="315.97037"
+       height="144.70571"
+       id="rect9" />
+  </defs>
+  <g
+     id="layer1">
+    <rect
+       style="fill:#86c4e7;fill-opacity:0.584513;stroke-width:0.662562;stroke-linecap:round"
+       id="rect1"
+       width="117.66834"
+       height="91.479225"
+       x="28.704624"
+       y="15.990597"
+       ry="9.6857567" />
+    <rect
+       style="fill:#86c4e7;fill-opacity:0.584513;stroke-width:0.568833;stroke-linecap:round"
+       id="rect1-2"
+       width="106.33389"
+       height="74.614967"
+       x="37.406212"
+       y="29.741091"
+       ry="7.9001818" />
+    <rect
+       style="fill:#86c4e7;fill-opacity:0.67678;stroke-width:0.253285;stroke-linecap:round"
+       id="rect1-2-2"
+       width="58.141869"
+       height="27.055723"
+       x="82.868309"
+       y="53.36248"
+       ry="2.8646414" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26823px;font-family:Consolas;-inkscape-font-specification:Consolas;letter-spacing:0px;word-spacing:0px;white-space:pre;inline-size:89.4431;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="35.004581"
+       y="25.534275"
+       id="text2"><tspan
+         x="35.004581"
+         y="25.534275"
+         id="tspan4"><tspan
+   style="fill:#666666"
+   id="tspan2">$</tspan> cargo fixture <tspan
+   style="fill:#ff2a2a"
+   id="tspan3">args...</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:'DejaVu Sans';-inkscape-font-specification:'DejaVu Sans';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="85.463638"
+       y="63.022091"
+       id="text2-79"><tspan
+         id="tspan2-2"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="85.463638"
+         y="63.022091">cargo test <tspan
+   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;fill:#ff2a2a"
+   id="tspan3-2">args...</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:'DejaVu Sans';-inkscape-font-specification:'DejaVu Sans';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="43.187725"
+       y="38.68428"
+       id="text2-7"><tspan
+         id="tspan2-0"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="38.68428">fixture.rs - main() {</tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="47.042934"
+         id="tspan6">    ... setup ...</tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="55.401588"
+         id="tspan16" /><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="63.760242"
+         id="tspan7">    ready() → </tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="72.118896"
+         id="tspan8">    </tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="80.477554"
+         id="tspan13" /><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="88.836205"
+         id="tspan14">    ... teardown ...</tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.29167px;line-height:8.26822px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.264583px"
+         x="43.187725"
+         y="97.194862"
+         id="tspan5">}</tspan></text>
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text9"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:16px;line-height:25px;font-family:'DejaVu Sans';-inkscape-font-specification:'DejaVu Sans';letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect9);display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <path
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#ea0c0c;stroke-width:0.265;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Dot);marker-end:url(#Triangle)"
+       d="m 103.75323,23.994285 c 16.77645,-0.390205 18.31109,6.735202 18.2137,32.697133"
+       id="path14" />
+  </g>
+</svg>

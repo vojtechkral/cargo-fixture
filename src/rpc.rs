@@ -51,10 +51,9 @@ impl Client {
 
     fn call(&mut self, request: PipeRequest) -> PipeResponse {
         let request = serde_json::to_string(&request).unwrap();
-        dbg!(&request);
         self.stdout.write_all(request.as_bytes()).unwrap();
+        self.stdout.write_all(b"\n").unwrap();
         let response = self.stdin.next().unwrap().unwrap();
-        dbg!(&response);
         serde_json::from_str(&response).unwrap()
     }
 
@@ -68,6 +67,10 @@ impl Client {
 
     pub fn run_tests(&mut self) -> bool {
         self.call(PipeRequest::RunTests).unwrap_tests_finished()
+    }
+
+    pub fn finalize(mut self) {
+        self.call(PipeRequest::Finalize).unwrap_ok()
     }
 }
 

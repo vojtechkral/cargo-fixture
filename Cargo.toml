@@ -1,0 +1,28 @@
+[package]
+name = "cargo-fixture"
+version = "0.1.0"
+authors = ["Vojtech Kral"]
+description = "FIXME: descr"
+license = "Apache-2.0"
+keywords = ["rust", "cargo", "testing"] # TODO: more?
+edition = "2021"
+
+[lib]
+name = "cargo_fixture"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cargo-fixture"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.4", default-features = false, features = ["std", "help", "usage", "error-context", "derive"] }
+stderrlog = "0.5"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+# FIXME: tmp
+[workspace]
+members = ["scratch/pk"]

@@ -1,0 +1,16 @@
+[package]
+name = "pk"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cargo-fixture = { path = "../.." }
+
+[[test]]
+name = "fixture"
+path = "tests/fixture.rs"
+test = false
+doctest = false
+bench = false
+doc = false
+harness = false

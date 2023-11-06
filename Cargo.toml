@@ -1,0 +1,9 @@
+[package]
+name = "cargo-fixture"
+version = "0.1.0"
+authors = ["Vojtech Kral"]
+description = "Set up environment for running tests - work in progress - placeholder"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]

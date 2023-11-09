@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "msg", content = "data")]
 pub enum PipeRequest {
     SetEnv { name: String, value: String },
-    RunTests, // TODO: optionally with args?,
+    RunTests { args: Option<Vec<String>> },
     Finalize,
 }
 
@@ -26,15 +26,17 @@ impl PipeResponse {
         assert!(matches!(self, Self::Ok), "Unexpected response: {self:?}");
     }
 
-    fn unwrap_tests_finished(self) -> bool {
+    // TODO: proper err type
+    fn unwrap_tests_finished(self) -> Result<(), ()> {
         match self {
-            PipeResponse::TestsFinished { success } => success,
+            PipeResponse::TestsFinished { success: true } => Ok(()),
+            PipeResponse::TestsFinished { success: false } => Err(()),
             _ => panic!("Unexpected response: {self:?}"),
         }
     }
 }
 
-// FIXME: unwraps -> expects ... or lib error type?
+// FIXME: unwraps -> expects / lib error type?
 
 pub struct Client {
     stdin: Lines<BufReader<StdinLock<'static>>>,
@@ -65,8 +67,14 @@ impl Client {
         self.call(req).unwrap_ok();
     }
 
-    pub fn run_tests(&mut self) -> bool {
-        self.call(PipeRequest::RunTests).unwrap_tests_finished()
+    // TODO: return a result in these
+    pub fn run_tests(&mut self) -> Result<(), ()> {
+        self.call(PipeRequest::RunTests { args: None }).unwrap_tests_finished()
+    }
+
+    pub fn run_tests_args(&mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Result<(), ()> {
+        let args = args.into_iter().map(Into::into).collect();
+        self.call(PipeRequest::RunTests { args: Some(args) }).unwrap_tests_finished()
     }
 
     pub fn finalize(mut self) {

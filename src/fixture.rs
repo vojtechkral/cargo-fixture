@@ -71,7 +71,7 @@ impl FixtureProcess {
             // FIXME: timeout - interruptible
             let resp = match self.msg_rx.recv().unwrap() {
                 PipeRequest::SetEnv { name, value } => self.handle_set_env(name, value),
-                PipeRequest::RunTests => self.handle_run_tests(),
+                PipeRequest::RunTests { args } => self.handle_run_tests(args),
                 PipeRequest::Finalize => {
                     info!("tearing down...");
                     run = false;
@@ -92,9 +92,12 @@ impl FixtureProcess {
         PipeResponse::Ok
     }
 
-    fn handle_run_tests(&self) -> PipeResponse {
+    fn handle_run_tests(&self, args: Option<Vec<String>>) -> PipeResponse {
+        let mut command = args.map(|args| {
+            CmdSpec::new(self.test_cmd.program.clone(), args).command()
+        }).unwrap_or_else(|| self.test_cmd.command());
         info!("running {}", self.test_cmd);
-        let success = self.test_cmd.command()
+        let success = command
             .status()
             .map(|status| status.success())
             // .map_err(Into::into)

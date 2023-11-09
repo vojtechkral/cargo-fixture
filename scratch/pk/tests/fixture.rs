@@ -7,7 +7,7 @@ fn main() {
     let mut fixture = cargo_fixture::Client::new();
     fixture.set_env_var("FOO", "bar");
     thread::sleep(Duration::from_millis(500));
-    let success = fixture.run_tests();
-    dbg!(success);
+    dbg!(fixture.run_tests());
+    dbg!(fixture.run_tests_args(["test", "--", "--ignored"]));
     fixture.finalize();
 }

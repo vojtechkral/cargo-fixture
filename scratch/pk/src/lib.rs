@@ -16,4 +16,16 @@ mod tests {
         let foo = env::var("FOO").unwrap();
         assert_eq!(foo, "bar");
     }
+
+    #[test]
+    #[ignore]
+    fn it_works_2() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+
+        let foo = env::var("FOO").unwrap();
+        assert_eq!(foo, "bar");
+
+        panic!("Ha!");
+    }
 }

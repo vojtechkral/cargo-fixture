@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "msg", content = "data")]
 pub enum PipeRequest {
     SetEnv { name: String, value: String },
-    RunTests { args: Option<Vec<String>> },
+    RunTests { args: Option<Vec<String>> },  // FIXME: remove args, rename as Ready
     Finalize,
 }
 
@@ -69,12 +69,17 @@ impl Client {
 
     // TODO: return a result in these
     pub fn run_tests(&mut self) -> Result<(), ()> {
-        self.call(PipeRequest::RunTests { args: None }).unwrap_tests_finished()
+        self.call(PipeRequest::RunTests { args: None })
+            .unwrap_tests_finished()
     }
 
-    pub fn run_tests_args(&mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Result<(), ()> {
+    pub fn run_tests_args(
+        &mut self,
+        args: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Result<(), ()> {
         let args = args.into_iter().map(Into::into).collect();
-        self.call(PipeRequest::RunTests { args: Some(args) }).unwrap_tests_finished()
+        self.call(PipeRequest::RunTests { args: Some(args) })
+            .unwrap_tests_finished()
     }
 
     pub fn finalize(mut self) {

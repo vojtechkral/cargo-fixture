@@ -1,10 +1,10 @@
 use std::{
-    env,
+    env, fmt,
     io::{BufRead as _, BufReader, Write},
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
     sync::mpsc,
     thread,
-    time::Duration, fmt,
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -18,12 +18,14 @@ pub struct CmdSpec {
 }
 
 impl CmdSpec {
-    pub fn new(program: String, args: Vec<String>) -> Self { Self { program, args } }
+    pub fn new(program: String, args: Vec<String>) -> Self {
+        Self { program, args }
+    }
 
     fn command(&self) -> Command {
         let mut cmd = Command::new(&self.program);
-            cmd.args(&self.args[..]);
-            cmd
+        cmd.args(&self.args[..]);
+        cmd
     }
 }
 
@@ -45,8 +47,9 @@ pub struct FixtureProcess {
 }
 
 impl FixtureProcess {
-    pub fn spawn(fixture_cmd: CmdSpec,test_cmd: CmdSpec) -> Result<Self> {
-        let mut child = fixture_cmd.command()
+    pub fn spawn(fixture_cmd: CmdSpec, test_cmd: CmdSpec) -> Result<Self> {
+        let mut child = fixture_cmd
+            .command()
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -93,9 +96,9 @@ impl FixtureProcess {
     }
 
     fn handle_run_tests(&self, args: Option<Vec<String>>) -> PipeResponse {
-        let mut command = args.map(|args| {
-            CmdSpec::new(self.test_cmd.program.clone(), args).command()
-        }).unwrap_or_else(|| self.test_cmd.command());
+        let mut command = args
+            .map(|args| CmdSpec::new(self.test_cmd.program.clone(), args).command())
+            .unwrap_or_else(|| self.test_cmd.command());
         info!("running {}", self.test_cmd);
         let success = command
             .status()

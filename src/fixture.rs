@@ -1,7 +1,7 @@
 use std::{
-    env, fmt,
+    env,
     io::{BufRead as _, BufReader, Write},
-    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+    process::{Child, ChildStdin, ChildStdout},
     sync::mpsc,
     thread,
     time::Duration,
@@ -9,58 +9,26 @@ use std::{
 
 use anyhow::Result;
 use cargo_fixture::rpc::{PipeRequest, PipeResponse};
-use log::{info, trace};
+use log::{debug, info, trace};
 
-#[derive(Clone, Debug)]
-pub struct CmdSpec {
-    program: String,
-    args: Vec<String>,
-}
-
-impl CmdSpec {
-    pub fn new(program: String, args: Vec<String>) -> Self {
-        Self { program, args }
-    }
-
-    fn command(&self) -> Command {
-        let mut cmd = Command::new(&self.program);
-        cmd.args(&self.args[..]);
-        cmd
-    }
-}
-
-impl fmt::Display for CmdSpec {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.program)?;
-        for arg in &self.args[..] {
-            write!(f, " {}", arg)?;
-        }
-        Ok(())
-    }
-}
+use crate::cli::Cli;
 
 pub struct FixtureProcess {
-    test_cmd: CmdSpec,
+    cli: Cli,
     child: Child,
     msg_rx: mpsc::Receiver<PipeRequest>,
     child_stdin: ChildStdin,
 }
 
 impl FixtureProcess {
-    pub fn spawn(fixture_cmd: CmdSpec, test_cmd: CmdSpec) -> Result<Self> {
-        let mut child = fixture_cmd
-            .command()
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .unwrap(); // FIXME: err handling
+    pub fn spawn(cli: Cli) -> Result<Self> {
+        let mut child = cli.fixture_cmd().spawn().unwrap(); // FIXME: err handling
 
         let msg_rx = Self::read_thread(child.stdout.take().unwrap());
         let child_stdin = child.stdin.take().unwrap();
 
         Ok(Self {
-            test_cmd,
+            cli,
             child,
             msg_rx,
             child_stdin,
@@ -74,7 +42,7 @@ impl FixtureProcess {
             // FIXME: timeout - interruptible
             let resp = match self.msg_rx.recv().unwrap() {
                 PipeRequest::SetEnv { name, value } => self.handle_set_env(name, value),
-                PipeRequest::RunTests { args } => self.handle_run_tests(args),
+                PipeRequest::Ready => self.handle_ready(),
                 PipeRequest::Finalize => {
                     info!("tearing down...");
                     run = false;
@@ -90,21 +58,23 @@ impl FixtureProcess {
     }
 
     fn handle_set_env(&self, name: String, value: String) -> PipeResponse {
-        info!("setting env var {name}={value}"); // TODO: log level?
+        debug!("setting env var {name}={value}");
         env::set_var(name, value);
         PipeResponse::Ok
     }
 
-    fn handle_run_tests(&self, args: Option<Vec<String>>) -> PipeResponse {
-        let mut command = args
-            .map(|args| CmdSpec::new(self.test_cmd.program.clone(), args).command())
-            .unwrap_or_else(|| self.test_cmd.command());
-        info!("running {}", self.test_cmd);
+    fn handle_ready(&self) -> PipeResponse {
+        let mut command = self.cli.test_cmd();
+        info!("running {command:?}"); // FIXME: nicer print
         let success = command
             .status()
-            .map(|status| status.success())
+            .map(|status| {
+                debug!("test command: {status:?}");
+                status.success()
+            })
             // .map_err(Into::into)
             .unwrap();
+
         PipeResponse::TestsFinished { success }
     }
 

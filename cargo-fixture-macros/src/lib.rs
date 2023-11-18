@@ -11,5 +11,6 @@ pub fn with_fixture(_args: TokenStream, input: TokenStream) -> TokenStream {
     quote! {
         #[cfg_attr(not(feature = "fixture"), ignore = "only run under cargo fixture")]
         #input
-    }.into()
+    }
+    .into()
 }

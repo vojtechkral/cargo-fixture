@@ -11,7 +11,7 @@ use anyhow::Result;
 use cargo_fixture::rpc::{PipeRequest, PipeResponse};
 use log::{debug, info, trace};
 
-use crate::cli::Cli;
+use crate::{cli::Cli, utils::CommandExt};
 
 pub struct FixtureProcess {
     cli: Cli,
@@ -23,7 +23,7 @@ pub struct FixtureProcess {
 impl FixtureProcess {
     pub fn spawn(cli: Cli) -> Result<Self> {
         let fixture_cmd = cli.fixture_cmd();
-        debug!("running {fixture_cmd:?}"); // FIXME: nicer print
+        debug!("running {}", fixture_cmd.display());
         let mut child = cli.fixture_cmd().spawn().unwrap(); // FIXME: err handling
 
         let msg_rx = Self::read_thread(child.stdout.take().unwrap());
@@ -66,9 +66,9 @@ impl FixtureProcess {
     }
 
     fn handle_ready(&self) -> PipeResponse {
-        let mut command = self.cli.test_cmd();
-        info!("running {command:?}"); // FIXME: nicer print
-        let success = command
+        let mut test_cmd = self.cli.test_cmd();
+        info!("running {}", test_cmd.display());
+        let success = test_cmd
             .status()
             .map(|status| {
                 debug!("test command: {status:?}");

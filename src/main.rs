@@ -5,6 +5,7 @@ use crate::fixture::FixtureProcess;
 mod cli;
 mod fixture;
 mod logger;
+mod utils;
 
 fn main() {
     let cli = cli::parse();

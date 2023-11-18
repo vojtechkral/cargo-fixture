@@ -22,6 +22,8 @@ pub struct FixtureProcess {
 
 impl FixtureProcess {
     pub fn spawn(cli: Cli) -> Result<Self> {
+        let fixture_cmd = cli.fixture_cmd();
+        debug!("running {fixture_cmd:?}"); // FIXME: nicer print
         let mut child = cli.fixture_cmd().spawn().unwrap(); // FIXME: err handling
 
         let msg_rx = Self::read_thread(child.stdout.take().unwrap());

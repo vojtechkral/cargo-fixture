@@ -34,7 +34,7 @@ pub struct Cli {
     #[clap(skip = Self::cargo_path())]
     cargo: OsString,
 
-    /// Pass flags or arguments to the fixture binary
+    /// Pass a flag/argument to the fixture binary; use multiple times to pass several arguments
     #[arg(short = 'A', value_name = "FLAG|ARG", allow_hyphen_values = true)]
     fixture_args: Vec<String>,
 
@@ -65,8 +65,10 @@ impl Cli {
 
     pub fn fixture_cmd(&self) -> Command {
         let mut cmd = Command::new(self.cargo.clone());
-        cmd.args(&self.args.common_cargo_flags)
-            .args(["test", "--test", "fixture"])
+        cmd.arg("test")
+            .args(&self.args.common_cargo_flags)
+            .args(["--test", "fixture", "--"])
+            .args(&self.fixture_args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
@@ -80,7 +82,9 @@ impl Cli {
             cmd
         } else {
             let mut cmd = Command::new(self.cargo.clone());
-            cmd.args(["test", "--features", "fixture"]); // FIXME: additive features, // FIXME: configurable feature?
+            // NB. --features is additive
+            // TODO: configurable feature name?
+            cmd.args(["test", "--features", "fixture"]);
             cmd.args(&self.args.args);
             cmd
         };
@@ -229,10 +233,15 @@ macro_rules! flag {
 static COMMON_CARGO_FLAGS: &[CommonCargoFlag] = &[
     flag!("-q" "--quiet"),
     flag!("-v" "--verbose"),
+    flag!("--ignore-rust-version"),
+    flag!("--future-incompat-report"),
+    flag!("--color"["WHEN"]),
     flag!("--config"["KEY=VALUE"]),
     flag!("-Z"["FLAG"]),
     flag!("-p" "--package" ["SPEC"]),
     flag!("-F" "--features" ["FEATURES"]),
+    flag!("--all-features"),
+    flag!("--no-default-features"),
     flag!("-j" "--jobs" ["N"]),
     flag!("-r" "--release"),
     flag!("--profile"["PROFILE-NAME"]),

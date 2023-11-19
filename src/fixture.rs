@@ -1,6 +1,8 @@
 use std::{
-    env,
+    env, fs,
     io::{BufRead as _, BufReader, Write},
+    mem,
+    path::PathBuf,
     process::{Child, ChildStdin, ChildStdout},
     sync::mpsc,
     thread,
@@ -9,7 +11,7 @@ use std::{
 
 use anyhow::Result;
 use cargo_fixture::rpc::{PipeRequest, PipeResponse};
-use log::{debug, info, trace};
+use log::{debug, info, trace, warn};
 
 use crate::{cli::Cli, utils::CommandExt};
 
@@ -18,6 +20,7 @@ pub struct FixtureProcess {
     child: Child,
     msg_rx: mpsc::Receiver<PipeRequest>,
     child_stdin: ChildStdin,
+    data_tmp_files: Vec<PathBuf>,
 }
 
 impl FixtureProcess {
@@ -34,6 +37,7 @@ impl FixtureProcess {
             child,
             msg_rx,
             child_stdin,
+            data_tmp_files: vec![],
         })
     }
 
@@ -44,6 +48,7 @@ impl FixtureProcess {
             // FIXME: timeout - interruptible
             let resp = match self.msg_rx.recv().unwrap() {
                 PipeRequest::SetEnv { name, value } => self.handle_set_env(name, value),
+                PipeRequest::EnqueueData { key, path } => self.handle_enqueue_data(key, path),
                 PipeRequest::Ready => self.handle_ready(),
                 PipeRequest::Finalize => {
                     info!("tearing down...");
@@ -62,6 +67,13 @@ impl FixtureProcess {
     fn handle_set_env(&self, name: String, value: String) -> PipeResponse {
         debug!("setting env var {name}={value}");
         env::set_var(name, value);
+        PipeResponse::Ok
+    }
+
+    fn handle_enqueue_data(&mut self, key: String, path: PathBuf) -> PipeResponse {
+        debug!("fixture data set, key: `{key}` -> {}", path.display());
+        // trace!("key `{}` -> file `{}`", key, );
+        self.data_tmp_files.push(path);
         PipeResponse::Ok
     }
 
@@ -100,6 +112,9 @@ impl FixtureProcess {
     }
 
     pub fn join(mut self) {
+        // create a guard that will clean up fixture data files
+        let _data_files_cleanup = RmDataFilesGuard::new(&mut self.data_tmp_files);
+
         loop {
             if let Some(status) = self.child.try_wait().unwrap() {
                 status.success(); // FIXME:
@@ -107,6 +122,26 @@ impl FixtureProcess {
             }
 
             thread::sleep(Duration::from_millis(50));
+        }
+    }
+}
+
+#[derive(Debug)]
+struct RmDataFilesGuard(Vec<PathBuf>);
+
+impl RmDataFilesGuard {
+    fn new(from: &mut Vec<PathBuf>) -> Self {
+        Self(mem::take(from))
+    }
+}
+
+impl Drop for RmDataFilesGuard {
+    fn drop(&mut self) {
+        for path in self.0.iter() {
+            debug!("removing {}", path.display());
+            if let Err(err) = fs::remove_file(&path) {
+                warn!("could not remove file `{}`: {}", path.display(), err);
+            }
         }
     }
 }

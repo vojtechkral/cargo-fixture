@@ -46,6 +46,7 @@ pub struct Cli {
     #[arg(short, default_value_t = false)]
     quiet: bool,
 
+    // TODO: keep fixture data flag?
     /// Instead of running cargo test [args...] run the specified command and pass it all remaining arguments
     #[arg(short = 'x', allow_hyphen_values = true, num_args = 1.., value_name = "ARGS")]
     exec: Vec<OsString>,

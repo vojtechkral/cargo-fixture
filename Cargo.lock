@@ -330,6 +330,7 @@ name = "pk"
 version = "0.1.0"
 dependencies = [
  "cargo-fixture",
+ "serde",
  "tokio",
 ]
 

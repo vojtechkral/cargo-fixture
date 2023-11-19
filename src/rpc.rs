@@ -1,6 +1,10 @@
 //! FIXME: doc-comment
 
-use std::io::{self, BufRead as _, BufReader, Lines, StdinLock, StdoutLock, Write};
+use std::{
+    fs::File,
+    io::{self, BufRead as _, BufReader, Lines, StdinLock, StdoutLock, Write},
+    path::PathBuf,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +13,7 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "msg", content = "data")]
 pub enum PipeRequest {
     SetEnv { name: String, value: String },
+    EnqueueData { key: String, path: PathBuf },
     Ready,
     Finalize,
 }
@@ -65,6 +70,23 @@ impl Client {
             value: value.into(),
         };
         self.call(req).unwrap_ok();
+    }
+
+    #[doc(hidden)]
+    /// Not public API, please use the `get/set_fixture_data` macros.
+    pub fn set_fixture_data(
+        &mut self,
+        key: impl Into<String>,
+        path: PathBuf,
+        value: impl Serialize,
+    ) {
+        let file = File::create(&path).unwrap();
+        serde_json::to_writer_pretty(file, &value).unwrap();
+        let req = PipeRequest::EnqueueData {
+            key: key.into(),
+            path,
+        };
+        self.call(req).unwrap_ok()
     }
 
     pub fn ready(&mut self) -> Result<(), ()> {

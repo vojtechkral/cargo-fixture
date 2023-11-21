@@ -13,7 +13,7 @@ use anyhow::Result;
 use cargo_fixture::rpc::{PipeRequest, PipeResponse};
 use log::{debug, info, trace, warn};
 
-use crate::{cli::Cli, config::Config, utils::CommandExt};
+use crate::{config::Config, utils::CommandExt};
 
 pub struct FixtureProcess {
     config: Config,

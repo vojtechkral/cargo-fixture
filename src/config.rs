@@ -11,6 +11,7 @@ use self::cargo_meta::CargoMetadata;
 
 mod cargo_meta;
 
+#[derive(Debug)]
 pub struct Config {
     pub cli: Cli,
     pub cargo_exe: PathBuf,

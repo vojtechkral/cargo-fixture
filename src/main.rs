@@ -23,7 +23,7 @@ fn main() {
     env::set_var("CARGO_FIXTURE", "1");
 
     let cli = cli::parse();
-    logger::init(cli.verbosity());
+    logger::init(cli.log_level);
     let config = Config::new(cli);
 
     info!("setting up...");

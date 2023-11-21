@@ -4,8 +4,10 @@ use std::{
     iter,
 };
 
-use clap::{value_parser, Arg, ArgMatches, FromArgMatches, Parser};
+use clap::{value_parser, Arg, ArgAction, ArgMatches, FromArgMatches, Parser};
 use os_str_bytes::RawOsStr;
+
+use crate::logger::LogLevel;
 
 pub fn parse() -> Cli {
     // FIXME: explain
@@ -22,7 +24,7 @@ pub fn parse() -> Cli {
 }
 
 #[derive(Parser)]
-#[command(multicall = true)]
+#[command(multicall = true, disable_version_flag = true)]
 enum Commands {
     #[command(name = "cargo fixture", version)]
     Fixture(Cli),
@@ -34,34 +36,24 @@ pub struct Cli {
     #[arg(short = 'A', value_name = "FLAG|ARG", allow_hyphen_values = true)]
     pub fixture_args: Vec<String>,
 
-    // TODO: extract these two from cargo args instead?
-    /// Set stderr verbosity
-    #[arg(short, action = clap::ArgAction::Count, default_value_t = 0)]
-    verbosity: u8,
-
-    /// No stderr logging
-    #[arg(short, default_value_t = false)]
-    quiet: bool,
+    /// Set stderr logging level
+    #[arg(short = 'L', value_enum, default_value_t = LogLevel::Info)]
+    pub log_level: LogLevel,
 
     // TODO: keep fixture data flag?
     /// Instead of running cargo test [args...] run the specified command and pass it all remaining arguments
     #[arg(short = 'x', allow_hyphen_values = true, num_args = 1.., value_name = "ARGS")]
     pub exec: Vec<OsString>,
 
+    /// Print version
+    #[arg(long, action = ArgAction::Version)]
+    version: (),
+
     #[clap(flatten)]
     pub args: Args,
 }
 
-impl Cli {
-    pub fn verbosity(&self) -> u32 {
-        if self.quiet {
-            0
-        } else {
-            self.verbosity as u32 + 1
-        }
-    }
-}
-
+/// FIXME: explain
 #[derive(Debug)]
 pub struct Args {
     pub cargo_flags_common: Vec<OsString>,

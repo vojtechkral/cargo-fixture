@@ -1,4 +1,25 @@
+use clap::ValueEnum;
 use log::{LevelFilter, Log, Metadata, Record};
+
+#[derive(ValueEnum, Clone, Copy, Debug)]
+#[clap(rename_all = "lower")]
+pub enum LogLevel {
+    Off,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl From<LogLevel> for LevelFilter {
+    fn from(level: LogLevel) -> Self {
+        match level {
+            LogLevel::Off => LevelFilter::Off,
+            LogLevel::Info => LevelFilter::Info,
+            LogLevel::Debug => LevelFilter::Debug,
+            LogLevel::Trace => LevelFilter::Trace,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Logger;
@@ -21,12 +42,7 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
-pub fn init(verbosity: u32) {
+pub fn init(level: LogLevel) {
     log::set_logger(&LOGGER).unwrap();
-    log::set_max_level(match verbosity {
-        0 => LevelFilter::Off,
-        1 => LevelFilter::Info,
-        2 => LevelFilter::Debug,
-        _ => LevelFilter::Trace,
-    });
+    log::set_max_level(level.into());
 }

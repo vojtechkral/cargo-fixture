@@ -14,10 +14,13 @@ pub struct CargoMetadata {
 impl CargoMetadata {
     pub fn read(cargo: impl AsRef<OsStr>, flags: &[impl AsRef<OsStr>]) -> Self {
         let output = Command::new(cargo)
+            .arg("metadata")
             .args(flags)
             .args(["--format-version", "1", "--no-deps"])
             .output()
             .expect("TODO:");
+
+        assert!(output.status.success());
 
         serde_json::from_slice(&output.stdout).expect("TODO:")
     }

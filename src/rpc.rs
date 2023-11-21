@@ -50,6 +50,8 @@ pub struct Client {
 
 impl Client {
     pub fn new() -> Self {
+        // FIXME: check $CARGO_FIXTURE
+
         Self {
             stdin: BufReader::new(io::stdin().lock()).lines(),
             stdout: io::stdout().lock(),

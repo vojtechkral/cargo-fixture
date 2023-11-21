@@ -22,7 +22,7 @@ stderrlog = "0.5"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-cargo_fixture_macros = { path = "cargo-fixture-macros" }  # FIXME: from crates
+cargo-fixture-macros = { path = "cargo-fixture-macros" }  # FIXME: from crates
 os_str_bytes = "6.6"
 
 [workspace]

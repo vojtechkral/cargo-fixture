@@ -2,7 +2,6 @@ use std::{
     env,
     ffi::{OsStr, OsString},
     iter,
-    process::{Command, Stdio},
 };
 
 use clap::{value_parser, Arg, ArgMatches, FromArgMatches, Parser};
@@ -31,13 +30,11 @@ enum Commands {
 
 #[derive(Parser, Debug)]
 pub struct Cli {
-    #[clap(skip = Self::cargo_path())]
-    cargo: OsString,
-
     /// Pass a flag/argument to the fixture binary; use multiple times to pass several arguments
     #[arg(short = 'A', value_name = "FLAG|ARG", allow_hyphen_values = true)]
-    fixture_args: Vec<String>,
+    pub fixture_args: Vec<String>,
 
+    // TODO: extract these two from cargo args instead?
     /// Set stderr verbosity
     #[arg(short, action = clap::ArgAction::Count, default_value_t = 0)]
     verbosity: u8,
@@ -49,10 +46,10 @@ pub struct Cli {
     // TODO: keep fixture data flag?
     /// Instead of running cargo test [args...] run the specified command and pass it all remaining arguments
     #[arg(short = 'x', allow_hyphen_values = true, num_args = 1.., value_name = "ARGS")]
-    exec: Vec<OsString>,
+    pub exec: Vec<OsString>,
 
     #[clap(flatten)]
-    args: Args,
+    pub args: Args,
 }
 
 impl Cli {
@@ -63,50 +60,13 @@ impl Cli {
             self.verbosity as u32 + 1
         }
     }
-
-    pub fn fixture_cmd(&self) -> Command {
-        let mut cmd = Command::new(self.cargo.clone());
-        cmd.arg("test")
-            .args(&self.args.common_cargo_flags)
-            .args(["--test", "fixture", "--"])
-            .args(&self.fixture_args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
-        cmd
-    }
-
-    pub fn test_cmd(&self) -> Command {
-        let mut cmd = if let Some(exec) = self.exec.get(0) {
-            let mut cmd = Command::new(exec);
-            cmd.args(&self.exec[1..]);
-            cmd
-        } else {
-            let mut cmd = Command::new(self.cargo.clone());
-            // NB. --features is additive
-            // TODO: configurable feature name?
-            cmd.args(["test", "--features", "fixture"]);
-            cmd.args(&self.args.args);
-            cmd
-        };
-        cmd.stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
-        cmd
-    }
-
-    fn cargo_path() -> OsString {
-        env::var_os("CARGO").unwrap_or_else(|| {
-            env::set_var("CARGO", "cargo");
-            "cargo".to_string().into()
-        })
-    }
 }
 
 #[derive(Debug)]
-struct Args {
-    common_cargo_flags: Vec<OsString>,
-    args: Vec<OsString>,
+pub struct Args {
+    pub cargo_flags_common: Vec<OsString>,
+    pub cargo_flags_test: Vec<OsString>,
+    pub args: Vec<OsString>,
 }
 
 impl clap::Args for Args {
@@ -119,7 +79,13 @@ impl clap::Args for Args {
                 .value_parser(value_parser!(OsString))
                 .help("cargo test flags/arguments or any command if -x is used"),
         )
-        .after_help(get_common_cargo_flags_help())
+        .after_help({
+            let mut after_help = "The following cargo flags are passed to all invocations of cargo:\n".to_string();
+            after_help.push_str(&CARGO_FLAGS_ALL.help_str());
+            after_help.push_str("\nThe following cargo flags are additionally passed to all invocations of cargo test:\n");
+            after_help.push_str(&CARGO_FLAGS_TEST.help_str());
+            after_help
+        })
     }
 
     fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
@@ -130,7 +96,8 @@ impl clap::Args for Args {
 impl FromArgMatches for Args {
     fn from_arg_matches(matches: &ArgMatches) -> Result<Self, clap::Error> {
         let mut this = Self {
-            common_cargo_flags: vec![],
+            cargo_flags_common: vec![],
+            cargo_flags_test: vec![],
             args: vec![],
         };
         this.update_from_arg_matches(matches)?;
@@ -144,37 +111,66 @@ impl FromArgMatches for Args {
             .flatten()
             .map(Clone::clone);
         self.args.extend(args);
-        self.common_cargo_flags = get_common_cargo_flags(&self.args);
+        self.cargo_flags_common = CARGO_FLAGS_ALL.filter_args(&self.args);
+        self.cargo_flags_test = CARGO_FLAGS_TEST.filter_args(&self.args);
         Ok(())
     }
 }
 
-fn get_common_cargo_flags(args: &[OsString]) -> Vec<OsString> {
-    let mut res = Vec::with_capacity(args.len());
+struct CommonCargoFlags(&'static [CommonCargoFlag]);
 
-    let mut args = args.iter();
-    while let Some(arg) = args.next() {
-        if let Some(take_next_arg) = COMMON_CARGO_FLAGS.iter().find_map(|flag| flag.matches(arg)) {
-            res.push(arg.clone());
-            if take_next_arg {
-                args.next().map(|arg| res.push(arg.clone()));
-            }
-        }
-    }
-
-    res
+/// CommonCargoFlags c-tor.
+macro_rules! flags {
+    ( $(( $($tt:tt)+ ),)+ ) => {
+        CommonCargoFlags(&[ $(flags!(@ $($tt)+)),+ ])
+    };
+    (@ $name:literal) => {
+        CommonCargoFlag::new($name, None, None)
+    };
+    (@ $name:literal, $name2:literal) => {
+        CommonCargoFlag::new($name, Some($name2), None)
+    };
+    (@ $name:literal = $value_name:literal) => {
+        CommonCargoFlag::new($name, None, Some($value_name))
+    };
+    (@ $name:literal, $name2:literal = $value_name:literal) => {
+        CommonCargoFlag::new($name, Some($name2), Some($value_name))
+    };
 }
 
-fn get_common_cargo_flags_help() -> String {
-    let help = "The following cargo flags are passed to all invocations of cargo (not just the main cargo test call):\n".to_string();
-    COMMON_CARGO_FLAGS.iter().fold(help, |mut help, flag| {
-        help.push_str(&format!("  {}", flag.name));
-        flag.name2.map(|name2| help.push_str(&format!(", {name2}")));
-        flag.value_name
-            .map(|value_name| help.push_str(&format!(" {value_name}")));
-        help.push('\n');
-        help
-    })
+impl CommonCargoFlags {
+    fn filter_args(&self, args: &[OsString]) -> Vec<OsString> {
+        let mut res = Vec::with_capacity(args.len());
+
+        let mut args = args.iter();
+        while let Some(arg) = args.next() {
+            if let Some(take_next_arg) = self.0.iter().find_map(|flag| flag.matches(arg)) {
+                res.push(arg.clone());
+                if take_next_arg {
+                    args.next().map(|arg| res.push(arg.clone()));
+                }
+            }
+        }
+
+        res
+    }
+
+    fn help_str(&self) -> String {
+        self.0
+            .iter()
+            .enumerate()
+            .fold(" ".to_string(), |mut help, (i, flag)| {
+                help.push_str(&format!(" {}", flag.name));
+                flag.name2.map(|name2| help.push_str(&format!("/{name2}")));
+                flag.value_name
+                    .map(|value_name| help.push_str(&format!(" {value_name}")));
+                help.push(',');
+                if (i + 1) % 4 == 0 {
+                    help.push_str("\n ");
+                }
+                help
+            })
+    }
 }
 
 #[derive(Debug)]
@@ -185,6 +181,18 @@ struct CommonCargoFlag {
 }
 
 impl CommonCargoFlag {
+    const fn new(
+        name: &'static str,
+        name2: Option<&'static str>,
+        value_name: Option<&'static str>,
+    ) -> Self {
+        Self {
+            name,
+            name2,
+            value_name,
+        }
+    }
+
     /// FIXME: doc
     fn matches(&self, arg: &OsStr) -> Option<bool> {
         let arg = RawOsStr::new(arg);
@@ -200,69 +208,43 @@ impl CommonCargoFlag {
     }
 }
 
-macro_rules! flag {
-    ($name:literal) => {
-        CommonCargoFlag {
-            name: $name,
-            name2: None,
-            value_name: None,
-        }
-    };
-    ($name:literal $name2:literal) => {
-        CommonCargoFlag {
-            name: $name,
-            name2: Some($name2),
-            value_name: None,
-        }
-    };
-    ($name:literal [ $value_name:literal ]) => {
-        CommonCargoFlag {
-            name: $name,
-            name2: None,
-            value_name: Some($value_name),
-        }
-    };
-    ($name:literal $name2:literal [ $value_name:literal ]) => {
-        CommonCargoFlag {
-            name: $name,
-            name2: Some($name2),
-            value_name: Some($value_name),
-        }
-    };
-}
+/// Cargo flags common for all used `cargo` subcommands.
+static CARGO_FLAGS_ALL: CommonCargoFlags = flags!(
+    ("-q", "--quiet"),
+    ("-v", "--verbose"),
+    ("-Z" = "FLAG"),
+    ("--color" = "WHEN"),
+    ("--config" = "KEY=VALUE"),
+    // Feature Selection:
+    ("-F", "--features" = "FEATURES"),
+    ("--all-features"),
+    ("--no-default-features"),
+    // Manifest Options:
+    ("--manifest-path" = "PATH"),
+    ("--frozen"),
+    ("--locked"),
+    ("--offline"),
+);
 
-static COMMON_CARGO_FLAGS: &[CommonCargoFlag] = &[
-    flag!("-q" "--quiet"),
-    flag!("-v" "--verbose"),
-    flag!("--ignore-rust-version"),
-    flag!("--future-incompat-report"),
-    flag!("--color"["WHEN"]),
-    flag!("--config"["KEY=VALUE"]),
-    flag!("-Z"["FLAG"]),
-    flag!("-p" "--package" ["SPEC"]),
-    flag!("-F" "--features" ["FEATURES"]),
-    flag!("--all-features"),
-    flag!("--no-default-features"),
-    flag!("-j" "--jobs" ["N"]),
-    flag!("-r" "--release"),
-    flag!("--profile"["PROFILE-NAME"]),
-    flag!("--target"["TRIPLE"]),
-    flag!("--target-dir"["DIRECTORY"]),
-    flag!("--unit-graph"),
-    flag!("--timings"["FMTS"]),
-    flag!("--manifest-path"["PATH"]),
-    flag!("--frozen"),
-    flag!("--locked"),
-    flag!("--offline"),
-];
+/// Cargo flags common for all `cargo test` invocations.
+static CARGO_FLAGS_TEST: CommonCargoFlags = flags!(
+    ("--ignore-rust-version"),
+    ("--future-incompat-report"),
+    // Package Selection:   // FIXME: We might need to extract this one too
+    ("-p", "--package" = "SPEC"),
+    // Compilation Options:
+    ("-j", "--jobs" = "N"),
+    ("-r", "--release"),
+    ("--profile" = "PROFILE-NAME"),
+    ("--target" = "TRIPLE"),
+    ("--target-dir" = "DIRECTORY"),
+    ("--unit-graph"),
+    ("--timings" = "FMTS"),
+);
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // fn os(s: &str) -> OsString {
-    //     s.into()
-    // }
 
     fn os<const N: usize>(str_array: [&'static str; N]) -> [OsString; N] {
         str_array.map(OsString::from)
@@ -270,7 +252,7 @@ mod tests {
 
     #[test]
     fn common_cargo_flags() {
-        let common = get_common_cargo_flags(&os([
+        let common = CARGO_FLAGS_ALL.filter_args(&os([
             "--foo",
             "-q",
             "--package=foo",

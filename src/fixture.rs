@@ -13,10 +13,10 @@ use anyhow::Result;
 use cargo_fixture::rpc::{PipeRequest, PipeResponse};
 use log::{debug, info, trace, warn};
 
-use crate::{cli::Cli, utils::CommandExt};
+use crate::{cli::Cli, config::Config, utils::CommandExt};
 
 pub struct FixtureProcess {
-    cli: Cli,
+    config: Config,
     child: Child,
     msg_rx: mpsc::Receiver<PipeRequest>,
     child_stdin: ChildStdin,
@@ -24,16 +24,16 @@ pub struct FixtureProcess {
 }
 
 impl FixtureProcess {
-    pub fn spawn(cli: Cli) -> Result<Self> {
-        let fixture_cmd = cli.fixture_cmd();
+    pub fn spawn(config: Config) -> Result<Self> {
+        let fixture_cmd = config.fixture_cmd();
         debug!("running {}", fixture_cmd.display());
-        let mut child = cli.fixture_cmd().spawn().unwrap(); // FIXME: err handling
+        let mut child = config.fixture_cmd().spawn().unwrap(); // FIXME: err handling
 
         let msg_rx = Self::read_thread(child.stdout.take().unwrap());
         let child_stdin = child.stdin.take().unwrap();
 
         Ok(Self {
-            cli,
+            config,
             child,
             msg_rx,
             child_stdin,
@@ -78,7 +78,7 @@ impl FixtureProcess {
     }
 
     fn handle_ready(&self) -> PipeResponse {
-        let mut test_cmd = self.cli.test_cmd();
+        let mut test_cmd = self.config.test_cmd();
         info!("running {}", test_cmd.display());
         let success = test_cmd
             .status()

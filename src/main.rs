@@ -8,7 +8,7 @@ mod cli;
 mod config;
 mod fixture;
 mod logger;
-mod server;
+mod socket;
 mod utils;
 
 // TODO: error handling

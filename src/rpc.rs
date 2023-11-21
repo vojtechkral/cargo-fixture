@@ -8,6 +8,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+// FIXME: rename these
+
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "msg", content = "data")]

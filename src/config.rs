@@ -2,7 +2,7 @@ use std::{
     env,
     ffi::OsString,
     path::PathBuf,
-    process::{Command, Stdio},
+    process::{Command, Stdio, self},
 };
 
 use crate::cli::Cli;
@@ -15,7 +15,7 @@ mod cargo_meta;
 pub struct Config {
     pub cli: Cli,
     pub cargo_exe: PathBuf,
-    pub target_dir: PathBuf,
+    pub socket_path: PathBuf,
 }
 
 impl Config {
@@ -30,11 +30,13 @@ impl Config {
         let metadata = CargoMetadata::read(&cargo_exe, &cli.args.cargo_flags_common);
 
         let target_dir = metadata.target_dir().clone();
+        let pid = process::id();
+        let socket_path = target_dir.join(&format!(".cargo-fixture-{pid}.sock"));
 
         Self {
             cli,
             cargo_exe,
-            target_dir,
+            socket_path,
         }
     }
 
@@ -44,6 +46,7 @@ impl Config {
             .args(&self.cli.args.cargo_flags_common)
             .args(["--test", "fixture", "--"])
             .args(&self.cli.fixture_args)
+            // .env("CARGO_FIXTURE_SOCKET", val)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());

@@ -13,13 +13,14 @@ use anyhow::Result;
 use cargo_fixture::rpc::{PipeRequest, PipeResponse};
 use log::{debug, info, trace, warn};
 
-use crate::{config::Config, utils::CommandExt};
+use crate::{config::Config, utils::CommandExt, socket::Socket};
 
 pub struct FixtureProcess {
     config: Config,
     child: Child,
     msg_rx: mpsc::Receiver<PipeRequest>,
     child_stdin: ChildStdin,
+    socket: Socket,
     data_tmp_files: Vec<PathBuf>,
 }
 
@@ -32,11 +33,14 @@ impl FixtureProcess {
         let msg_rx = Self::read_thread(child.stdout.take().unwrap());
         let child_stdin = child.stdin.take().unwrap();
 
+        let socket = Socket::accept(&config.socket_path);
+
         Ok(Self {
             config,
             child,
             msg_rx,
             child_stdin,
+            socket,
             data_tmp_files: vec![],
         })
     }
@@ -46,6 +50,9 @@ impl FixtureProcess {
         while run {
             // FIXME: EOF handling
             // FIXME: timeout - interruptible
+
+            let request = self.socket.recv();
+
             let resp = match self.msg_rx.recv().unwrap() {
                 PipeRequest::SetEnv { name, value } => self.handle_set_env(name, value),
                 PipeRequest::EnqueueData { key, path } => self.handle_enqueue_data(key, path),

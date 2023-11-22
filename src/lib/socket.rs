@@ -1,6 +1,6 @@
 use std::{
     io::{BufRead, BufReader, Write},
-    path::Path,
+    path::Path, time::Duration,
 };
 
 use log::trace;
@@ -10,7 +10,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 #[cfg(windows)]
 use uds_windows::UnixListener;
 
-use crate::utils::RmGuard; // https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
+use crate::utils::{RmGuard, UnixListenerExt}; // https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
 
 #[derive(Debug)]
 pub struct Socket {
@@ -23,6 +23,8 @@ impl Socket {
         // Ensure socket file is removed as soon as not necessary or on error:
         let rm_guard = RmGuard(socket_path);
         let listener = UnixListener::bind(socket_path).expect("TODO:");
+        let listener = listener.set_accept_timeout(Some(Duration::from_millis(5_000))).expect("TODO:");
+
         trace!("listen socket: {}", socket_path.display());
         let (socket, _addr) = listener.accept().expect("TODO:");
         trace!("connection accepted");

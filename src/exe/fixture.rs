@@ -20,6 +20,7 @@ impl FixtureProcess {
     pub fn spawn(config: Config) -> Result<Self> {
         let fixture_cmd = config.fixture_cmd();
         debug!("running {}", fixture_cmd.display());
+        // FIXME: race: socket not created yet
         let child = config.fixture_cmd().spawn().unwrap(); // FIXME: err handling
 
         // FIXME: child may never connect (eg. cargo error) - move to thread

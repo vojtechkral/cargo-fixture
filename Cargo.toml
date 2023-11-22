@@ -9,11 +9,11 @@ edition = "2021"
 
 [lib]
 name = "cargo_fixture"
-path = "src/lib.rs"
+path = "src/lib/lib.rs"
 
 [[bin]]
 name = "cargo-fixture"
-path = "src/main.rs"
+path = "src/exe/main.rs"
 
 [dependencies]
 anyhow = "1" # FIXME: rm
@@ -22,11 +22,11 @@ stderrlog = "0.5"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-cargo-fixture-macros = { path = "cargo-fixture-macros" }  # FIXME: from crates
+cargo-fixture-macros = { path = "src/macros" }  # FIXME: from crates
 os_str_bytes = "6.6"
 
 [workspace]
 members = [
-    "cargo-fixture-macros",
+    "src/macros",
     "scratch/pk", # FIXME: tmp
 ]

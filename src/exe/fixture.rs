@@ -1,25 +1,17 @@
-use std::{
-    env, fs,
-    io::{BufRead as _, BufReader, Write},
-    mem,
-    path::PathBuf,
-    process::{Child, ChildStdin, ChildStdout},
-    sync::mpsc,
-    thread,
-    time::Duration,
-};
+use std::{env, fs, mem, path::PathBuf, process::Child, thread, time::Duration};
 
 use anyhow::Result;
-use cargo_fixture::rpc::{PipeRequest, PipeResponse};
-use log::{debug, info, trace, warn};
+use cargo_fixture::{
+    rpc::{PipeRequest, PipeResponse},
+    socket::Socket,
+};
+use log::{debug, info, warn};
 
-use crate::{config::Config, utils::CommandExt, socket::Socket};
+use crate::{config::Config, utils::CommandExt};
 
 pub struct FixtureProcess {
     config: Config,
     child: Child,
-    msg_rx: mpsc::Receiver<PipeRequest>,
-    child_stdin: ChildStdin,
     socket: Socket,
     data_tmp_files: Vec<PathBuf>,
 }
@@ -28,18 +20,14 @@ impl FixtureProcess {
     pub fn spawn(config: Config) -> Result<Self> {
         let fixture_cmd = config.fixture_cmd();
         debug!("running {}", fixture_cmd.display());
-        let mut child = config.fixture_cmd().spawn().unwrap(); // FIXME: err handling
+        let child = config.fixture_cmd().spawn().unwrap(); // FIXME: err handling
 
-        let msg_rx = Self::read_thread(child.stdout.take().unwrap());
-        let child_stdin = child.stdin.take().unwrap();
-
+        // FIXME: child may never connect (eg. cargo error) - move to thread
         let socket = Socket::accept(&config.socket_path);
 
         Ok(Self {
             config,
             child,
-            msg_rx,
-            child_stdin,
             socket,
             data_tmp_files: vec![],
         })
@@ -51,9 +39,8 @@ impl FixtureProcess {
             // FIXME: EOF handling
             // FIXME: timeout - interruptible
 
-            let request = self.socket.recv();
-
-            let resp = match self.msg_rx.recv().unwrap() {
+            let request: PipeRequest = self.socket.recv();
+            let resp = match request {
                 PipeRequest::SetEnv { name, value } => self.handle_set_env(name, value),
                 PipeRequest::EnqueueData { key, path } => self.handle_enqueue_data(key, path),
                 PipeRequest::Ready => self.handle_ready(),
@@ -64,10 +51,11 @@ impl FixtureProcess {
                 }
             };
 
-            let mut resp = serde_json::to_string(&resp).unwrap();
-            trace!("rpc response: {resp}");
-            resp.push('\n');
-            self.child_stdin.write_all(resp.as_bytes()).unwrap();
+            self.socket.send(resp);
+            // let mut resp = serde_json::to_string(&resp).unwrap();
+            // trace!("rpc response: {resp}");
+            // resp.push('\n');
+            // self.child_stdin.write_all(resp.as_bytes()).unwrap();
         }
     }
 
@@ -79,7 +67,6 @@ impl FixtureProcess {
 
     fn handle_enqueue_data(&mut self, key: String, path: PathBuf) -> PipeResponse {
         debug!("fixture data set, key: `{key}` -> {}", path.display());
-        // trace!("key `{}` -> file `{}`", key, );
         self.data_tmp_files.push(path);
         PipeResponse::Ok
     }
@@ -97,25 +84,6 @@ impl FixtureProcess {
             .unwrap();
 
         PipeResponse::TestsFinished { success }
-    }
-
-    fn read_thread(child_stdout: ChildStdout) -> mpsc::Receiver<PipeRequest> {
-        let child_out = BufReader::new(child_stdout).lines();
-        let (tx, rx) = mpsc::channel();
-
-        thread::spawn(move || {
-            for line in child_out {
-                // FIXME: err handling:
-                let line = line.unwrap();
-                trace!("pipe: {}", line);
-                let msg = serde_json::from_str(&line).unwrap();
-                if tx.send(msg).is_err() {
-                    break;
-                }
-            }
-        });
-
-        rx
     }
 
     pub fn join(mut self) {

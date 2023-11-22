@@ -1,12 +1,10 @@
 //! FIXME: doc-comment
 
-use std::{
-    fs::File,
-    io::{self, BufRead as _, BufReader, Lines, StdinLock, StdoutLock, Write},
-    path::PathBuf,
-};
+use std::{env, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::socket::Socket;
 
 // FIXME: rename these
 
@@ -46,26 +44,21 @@ impl PipeResponse {
 // FIXME: unwraps -> expects / lib error type?
 
 pub struct Client {
-    stdin: Lines<BufReader<StdinLock<'static>>>,
-    stdout: StdoutLock<'static>,
+    socket: Socket,
 }
 
 impl Client {
-    pub fn new() -> Self {
-        // FIXME: check $CARGO_FIXTURE
+    pub fn connect() -> Self {
+        let socket_path = PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").expect("TODO:"));
 
         Self {
-            stdin: BufReader::new(io::stdin().lock()).lines(),
-            stdout: io::stdout().lock(),
+            socket: Socket::connect(&socket_path),
         }
     }
 
     fn call(&mut self, request: PipeRequest) -> PipeResponse {
-        let request = serde_json::to_string(&request).unwrap();
-        self.stdout.write_all(request.as_bytes()).unwrap();
-        self.stdout.write_all(b"\n").unwrap();
-        let response = self.stdin.next().unwrap().unwrap();
-        serde_json::from_str(&response).unwrap()
+        self.socket.send(request);
+        self.socket.recv()
     }
 
     pub fn set_env_var(&mut self, name: impl Into<String>, value: impl Into<String>) {

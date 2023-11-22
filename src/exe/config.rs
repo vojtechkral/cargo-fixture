@@ -2,7 +2,7 @@ use std::{
     env,
     ffi::OsString,
     path::PathBuf,
-    process::{Command, Stdio, self},
+    process::{self, Command, Stdio},
 };
 
 use crate::cli::Cli;
@@ -46,10 +46,7 @@ impl Config {
             .args(&self.cli.args.cargo_flags_common)
             .args(["--test", "fixture", "--"])
             .args(&self.cli.fixture_args)
-            // .env("CARGO_FIXTURE_SOCKET", val)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
+            .env("CARGO_FIXTURE_SOCKET", &self.socket_path);
         cmd
     }
 

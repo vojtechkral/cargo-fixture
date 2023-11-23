@@ -1,30 +1,39 @@
-use std::{env, fs, mem, path::PathBuf, process::Child, thread, time::Duration};
+use std::{env, fs, mem, path::PathBuf, thread, time::Duration, process::ExitStatus};
 
-use anyhow::Result;
+use anyhow::{Result, Context};
 use cargo_fixture::{
     rpc::{PipeRequest, PipeResponse},
-    socket::Socket,
 };
 use log::{debug, info, warn};
+use smol::{process::{Command, Child}, future::FutureExt as _};
 
-use crate::{config::Config, utils::CommandExt};
+use crate::{config::Config, utils::CommandExt as _};
+
+use self::socket::{Connection, Socket};
+
+mod socket;
 
 pub struct FixtureProcess {
     config: Config,
     child: Child,
-    socket: Socket,
+    socket: Connection,
     data_tmp_files: Vec<PathBuf>,
 }
 
+enum Recv {
+    Socket(PipeRequest),
+    Process(ExitStatus),
+}
+
 impl FixtureProcess {
-    pub fn spawn(config: Config) -> Result<Self> {
+    pub async fn spawn(config: Config) -> Result<Self> {
+        let socket = Socket::new(&config.socket_path)?;
+
         let fixture_cmd = config.fixture_cmd();
         debug!("running {}", fixture_cmd.display());
-        // FIXME: race: socket not created yet
-        let child = config.fixture_cmd().spawn().unwrap(); // FIXME: err handling
+        let child = Command::from(fixture_cmd).spawn().context("Error launching fixture process")?;
 
-        // FIXME: child may never connect (eg. cargo error) - move to thread
-        let socket = Socket::accept(&config.socket_path);
+        let socket = socket.accept().await?;
 
         Ok(Self {
             config,
@@ -60,6 +69,14 @@ impl FixtureProcess {
         }
     }
 
+    async fn child_recv(&mut self) -> Recv {
+        self.socket.recv::<PipeRequest>().map(Recv::Socket).or(
+            self.child.status()
+        );
+
+        todo!()
+    }
+
     fn handle_set_env(&self, name: String, value: String) -> PipeResponse {
         debug!("setting env var {name}={value}");
         env::set_var(name, value);
@@ -89,6 +106,7 @@ impl FixtureProcess {
 
     pub fn join(mut self) {
         // create a guard that will clean up fixture data files
+        // FIXME: use RmGuard
         let _data_files_cleanup = RmDataFilesGuard::new(&mut self.data_tmp_files);
 
         loop {

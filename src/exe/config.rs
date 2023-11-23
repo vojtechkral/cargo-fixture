@@ -2,14 +2,13 @@ use std::{
     env,
     ffi::OsString,
     path::PathBuf,
-    process::{self, Command, Stdio},
+    process::{self, Stdio, Command},
 };
 
-use crate::cli::Cli;
-
-use self::cargo_meta::CargoMetadata;
-
 mod cargo_meta;
+
+use crate::cli::Cli;
+use self::cargo_meta::CargoMetadata;
 
 #[derive(Debug)]
 pub struct Config {
@@ -46,7 +45,8 @@ impl Config {
             .args(&self.cli.args.cargo_flags_common)
             .args(["--test", "fixture", "--"])
             .args(&self.cli.fixture_args)
-            .env("CARGO_FIXTURE_SOCKET", &self.socket_path);
+            .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
+            .stdin(Stdio::null());
         cmd
     }
 
@@ -63,7 +63,7 @@ impl Config {
             cmd.args(&self.cli.args.args);
             cmd
         };
-        cmd.stdin(Stdio::inherit())
+        cmd.stdin(Stdio::null())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
         cmd

@@ -1,4 +1,6 @@
-use std::{fmt, process::Command};
+use std::{fmt, process::Command, path::Path, fs};
+
+use log::trace;
 
 pub trait CommandExt {
     fn display<'a>(&'a self) -> CommandPrint<'a>;
@@ -19,5 +21,16 @@ impl<'a> fmt::Display for CommandPrint<'a> {
             write!(f, " {}", arg.to_string_lossy())?;
         }
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct RmGuard<P>(pub(crate) P) where P: AsRef<Path>;
+
+impl<P> Drop for RmGuard<P> where P: AsRef<Path> {
+    fn drop(&mut self) {
+        let p = self.0.as_ref();
+        trace!("removing {}", p.display());
+        let _ = fs::remove_file(p);
     }
 }

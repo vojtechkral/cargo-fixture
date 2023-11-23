@@ -1,5 +1,7 @@
+
 use std::env;
 
+use anyhow::Result;
 use log::info;
 
 use crate::{config::Config, fixture::FixtureProcess};
@@ -11,7 +13,6 @@ mod logger;
 mod utils;
 
 // TODO: error handling
-// TODO: consider socket instead of std io pipe? - async support
 // TODO: fixture data keep flag?
 
 // cargo locate-project -> current Cargo.toml - nope, doesn't do -p => use metadata
@@ -26,7 +27,15 @@ fn main() {
     let config = Config::new(cli);
 
     info!("setting up...");
-    let mut fixture = FixtureProcess::spawn(config).unwrap();
-    fixture.serve();
-    fixture.join();
+
+    // FIXME: set smol max blocking threads to reasonable value https://docs.rs/blocking/latest/blocking/index.html
+    let res = smol::block_on(async move {
+        let mut fixture = FixtureProcess::spawn(config).await?;
+        fixture.serve();
+        fixture.join();
+
+        Result::<()>::Ok(())
+    });
+
+    res.unwrap(); // FIXME: ?
 }

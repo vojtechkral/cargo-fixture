@@ -1,4 +1,3 @@
-
 use std::env;
 
 use anyhow::Result;
@@ -14,6 +13,7 @@ mod utils;
 
 // TODO: error handling
 // TODO: fixture data keep flag?
+// TODO: ctrl-c
 
 // cargo locate-project -> current Cargo.toml - nope, doesn't do -p => use metadata
 // cargo metadata -> target dir
@@ -31,8 +31,8 @@ fn main() {
     // FIXME: set smol max blocking threads to reasonable value https://docs.rs/blocking/latest/blocking/index.html
     let res = smol::block_on(async move {
         let mut fixture = FixtureProcess::spawn(config).await?;
-        fixture.serve();
-        fixture.join();
+        fixture.serve().await?;
+        fixture.join().await;
 
         Result::<()>::Ok(())
     });

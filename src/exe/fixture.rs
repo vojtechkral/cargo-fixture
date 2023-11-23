@@ -1,13 +1,17 @@
-use std::{env, fs, mem, path::PathBuf, thread, time::Duration, process::ExitStatus};
+use std::{env, fs, mem, path::PathBuf, process::ExitStatus};
 
-use anyhow::{Result, Context};
-use cargo_fixture::{
-    rpc::{PipeRequest, PipeResponse},
-};
+use anyhow::{Context, Result};
+use cargo_fixture::rpc::{PipeRequest, PipeResponse};
 use log::{debug, info, warn};
-use smol::{process::{Command, Child}, future::FutureExt as _};
+use smol::{
+    future::FutureExt as _,
+    process::{Child, Command},
+};
 
-use crate::{config::Config, utils::CommandExt as _};
+use crate::{
+    config::Config,
+    utils::{CommandExt as _, FutureExt},
+};
 
 use self::socket::{Connection, Socket};
 
@@ -31,8 +35,11 @@ impl FixtureProcess {
 
         let fixture_cmd = config.fixture_cmd();
         debug!("running {}", fixture_cmd.display());
-        let child = Command::from(fixture_cmd).spawn().context("Error launching fixture process")?;
+        let child = Command::from(fixture_cmd)
+            .spawn()
+            .context("Error launching fixture process")?;
 
+        // FIXME: race, reap process
         let socket = socket.accept().await?;
 
         Ok(Self {
@@ -43,13 +50,16 @@ impl FixtureProcess {
         })
     }
 
-    pub fn serve(&mut self) {
+    pub async fn serve(&mut self) -> Result<()> {
         let mut run = true;
         while run {
             // FIXME: EOF handling
-            // FIXME: timeout - interruptible
 
-            let request: PipeRequest = self.socket.recv();
+            let request = match self.child_recv().await? {
+                Recv::Socket(req) => req,
+                Recv::Process(_) => todo!(),
+            };
+
             let resp = match request {
                 PipeRequest::SetEnv { name, value } => self.handle_set_env(name, value),
                 PipeRequest::EnqueueData { key, path } => self.handle_enqueue_data(key, path),
@@ -61,20 +71,21 @@ impl FixtureProcess {
                 }
             };
 
-            self.socket.send(resp);
-            // let mut resp = serde_json::to_string(&resp).unwrap();
-            // trace!("rpc response: {resp}");
-            // resp.push('\n');
-            // self.child_stdin.write_all(resp.as_bytes()).unwrap();
+            self.socket.send(resp).await.expect("FIXME:");
         }
+
+        Ok(())
     }
 
-    async fn child_recv(&mut self) -> Recv {
-        self.socket.recv::<PipeRequest>().map(Recv::Socket).or(
-            self.child.status()
-        );
-
-        todo!()
+    async fn child_recv(&mut self) -> Result<Recv> {
+        self.socket
+            .recv::<PipeRequest>()
+            .map(|res| res.map(Recv::Socket))
+            .or(self
+                .child
+                .status()
+                .map(|res| res.context("FIXME:").map(Recv::Process)))
+            .await
     }
 
     fn handle_set_env(&self, name: String, value: String) -> PipeResponse {
@@ -104,19 +115,11 @@ impl FixtureProcess {
         PipeResponse::TestsFinished { success }
     }
 
-    pub fn join(mut self) {
+    pub async fn join(mut self) {
         // create a guard that will clean up fixture data files
         // FIXME: use RmGuard
         let _data_files_cleanup = RmDataFilesGuard::new(&mut self.data_tmp_files);
-
-        loop {
-            if let Some(status) = self.child.try_wait().unwrap() {
-                status.success(); // FIXME:
-                return;
-            }
-
-            thread::sleep(Duration::from_millis(50));
-        }
+        self.child.status().await.expect("FIXME:");
     }
 }
 

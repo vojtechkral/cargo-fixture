@@ -2,13 +2,13 @@ use std::{
     env,
     ffi::OsString,
     path::PathBuf,
-    process::{self, Stdio, Command},
+    process::{self, Command, Stdio},
 };
 
 mod cargo_meta;
 
-use crate::cli::Cli;
 use self::cargo_meta::CargoMetadata;
+use crate::cli::Cli;
 
 #[derive(Debug)]
 pub struct Config {

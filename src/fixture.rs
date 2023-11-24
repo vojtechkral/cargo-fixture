@@ -40,6 +40,7 @@ impl FixtureProcess {
             .context("Error launching fixture process")?;
 
         // FIXME: race, reap process
+        // TODO: use futures_util
         let socket = socket.accept().await?;
 
         Ok(Self {

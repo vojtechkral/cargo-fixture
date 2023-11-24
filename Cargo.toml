@@ -7,35 +7,29 @@ license = "Apache-2.0"
 keywords = ["rust", "cargo", "testing"] # TODO: more?
 edition = "2021"
 
-[lib]
-name = "cargo_fixture"
-path = "src/lib/lib.rs"
-
 [[bin]]
 name = "cargo-fixture"
-path = "src/exe/main.rs"
-required-features = ["exe"]
 
 [dependencies]
+# lib
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-cargo-fixture-macros = { path = "src/macros" }  # FIXME: from crates
 
-# dependencies for the cargo-fixture binary only
-anyhow = { version = "1", optional = true }
-clap = { version = "4.4", default-features = false, features = ["std", "help", "usage", "error-context", "derive"], optional = true }
-futures-util = { version = "0.3.29", optional = true }
-os_str_bytes = { version = "6.6", optional = true }
-pin-project-lite = { version = "0.2.13", optional = true }
-smol = { version = "1.3.0", optional = true }
-stderrlog = { version = "0.5", optional = true }
+# binary
+anyhow = "1"
+clap = { version = "4.4", default-features = false, features = ["std", "help", "usage", "error-context", "derive"] }
+# futures-util = "0.3.29"
+os_str_bytes = "6.6"
+pin-project-lite = "0.2.13"
+smol = "1.3.0"
+stderrlog = "0.5"
 
-[features]
-exe = ["dep:anyhow", "dep:clap", "dep:futures-util", "dep:os_str_bytes", "dep:smol", "dep:stderrlog"]
+cargo-fixture-lib = { path = "crates/lib" }
 
 [workspace]
 members = [
-    "src/macros",
+    "crates/lib",
+    "crates/macros",
     "scratch/pk", # FIXME: tmp
 ]

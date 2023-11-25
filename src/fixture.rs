@@ -2,9 +2,9 @@ use std::{env, future::Future, path::PathBuf, process::ExitStatus};
 
 use anyhow::{anyhow, bail, Context, Error, Result};
 use async_ctrlc::CtrlC;
-use cargo_fixture::rpc::{Request, Response};
+use cargo_fixture::rpc::{Request, Response, WithVersion};
 use futures_util::{pin_mut, select, FutureExt, TryFutureExt as _};
-use log::{debug, info, Level};
+use log::{debug, info, warn, Level};
 use smol::process::{Child, Command};
 
 use crate::{
@@ -21,6 +21,7 @@ pub struct FixtureProcess {
     child: Child,
     socket: Connection,
     ctrlc: CtrlC,
+    version_checked: bool,
     data_tmp_files: Vec<RmGuard<PathBuf>>,
 }
 
@@ -61,40 +62,23 @@ impl FixtureProcess {
             FixtureOp::Process(status) => return Err(Self::fixture_early_exit(status)),
         };
 
-        let mut this = Self {
+        Ok(Self {
             config,
             child,
             socket,
             ctrlc,
+            version_checked: false,
             data_tmp_files: vec![],
-        };
-
-        // FIXME: rework this?
-
-        // compatibility handshake
-        if let Some(Request::Version { major: theirs }) = this.recv().await? {
-            let ours = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
-            if ours != theirs {
-                bail!("This cargo-fixture binary version ({ours}.x.y) is not compatible with the library linked by test code ({theirs}.x.y)");
-            } else {
-                // FIXME: reply
-                this.socket.send(Response::Ok).await.expect("FIXME:");
-            }
-        } else {
-            // FIXME:
-            todo!()
-        }
-
-        Ok(this)
+        })
     }
 
     pub async fn serve(&mut self) -> Result<()> {
         let mut run = true;
         while run {
-            let resp = self
-                .recv()
-                .await?
-                .ok_or_else(|| anyhow!("Fixture process exited without calling .ready()"))?;
+            let Some(resp) = self.recv().await? else {
+                self.run_tests();
+                return Ok(());
+            };
             let resp = match resp {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),
                 Request::EnqueueData { key, path } => self.handle_enqueue_data(key, path),
@@ -112,11 +96,24 @@ impl FixtureProcess {
     }
 
     async fn recv(&mut self) -> Result<Option<Request>> {
-        match fixture_op(self.socket.recv(), &mut self.child, &mut self.ctrlc).await? {
-            FixtureOp::Ok(Some(req)) => Ok(Some(req)),
-            FixtureOp::Ok(None) => Ok(None),
-            FixtureOp::Process(status) => Err(Self::fixture_early_exit(status)),
+        let WithVersion {
+            ver: theirs,
+            request,
+        } = match fixture_op(self.socket.recv(), &mut self.child, &mut self.ctrlc).await? {
+            FixtureOp::Ok(Some(req)) => req,
+            FixtureOp::Ok(None) => return Ok(None),
+            FixtureOp::Process(status) => return Err(Self::fixture_early_exit(status)),
+        };
+
+        if !self.version_checked {
+            let ours = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
+            if ours != theirs {
+                bail!("This cargo-fixture binary version ({ours}.x.y) is not compatible with the library linked by test code ({theirs}.x.y)");
+            }
+            self.version_checked = true;
         }
+
+        Ok(Some(request))
     }
 
     fn fixture_early_exit(status: ExitStatus) -> Error {
@@ -140,21 +137,26 @@ impl FixtureProcess {
     }
 
     fn handle_ready(&self) -> Response {
+        let success = self.run_tests();
+        Response::TestsFinished { success }
+    }
+
+    fn run_tests(&self) -> bool {
+        // TODO: propagate error status as exit status
+
         let mut test_cmd = self.config.test_cmd();
         info!("running {}", test_cmd.display());
-        let success = test_cmd
+        test_cmd
             .status()
             .map(|status| {
                 debug!("test command: {status:?}");
                 status.success()
             })
             .map_err(|err| {
-                debug!("test command error: {err}");
+                warn!("test command error: {err}");
                 err
             })
-            .unwrap_or(false);
-
-        Response::TestsFinished { success }
+            .unwrap_or(false)
     }
 
     pub async fn join(mut self) {

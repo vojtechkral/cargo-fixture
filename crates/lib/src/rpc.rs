@@ -39,24 +39,39 @@ impl Response {
     }
 }
 
-// FIXME: unwraps -> expects / lib error type?
+#[doc(hidden)]
+#[derive(Serialize, Deserialize)]
+pub struct WithVersion {
+    pub ver: u32,
+
+    #[serde(flatten)]
+    pub request: Request,
+}
+
+impl WithVersion {
+    pub fn new(ver: u32, request: Request) -> Self {
+        Self { ver, request }
+    }
+}
+
+// FIXME: unwraps -> expects / lib error type
 
 pub struct Client {
     socket: Socket,
+    version: u32,
 }
 
 impl Client {
     pub fn connect() -> Self {
         let socket_path = PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").expect("TODO:"));
-        let socket = Socket::connect(&socket_path);
-        let mut this = Self { socket };
-        let major = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
-        this.call(Request::Version { major }).unwrap_ok();
-        this
+        Self {
+            socket: Socket::connect(&socket_path),
+            version: env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap(),
+        }
     }
 
     fn call(&mut self, request: Request) -> Response {
-        self.socket.send(request);
+        self.socket.send(WithVersion::new(self.version, request));
         self.socket.recv()
     }
 

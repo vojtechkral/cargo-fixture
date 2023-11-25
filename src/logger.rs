@@ -32,6 +32,11 @@ impl Log for Logger {
     }
 
     fn log(&self, record: &Record) {
+        if !record.target().starts_with("cargo_fixture") {
+            // only log our logs
+            return;
+        }
+
         if record.level() == LevelFilter::Info {
             eprintln!("cargo-fixture: {}", record.args());
         } else {

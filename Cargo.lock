@@ -309,7 +309,6 @@ name = "cargo-fixture-lib"
 version = "0.9.0"
 dependencies = [
  "cargo-fixture-macros",
- "log",
  "serde",
  "serde_json",
 ]

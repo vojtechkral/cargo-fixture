@@ -11,22 +11,21 @@ use crate::socket::Socket;
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "msg", content = "data")]
-pub enum PipeRequest {
+pub enum Request {
     SetEnv { name: String, value: String },
     EnqueueData { key: String, path: PathBuf },
     Ready,
-    Finalize,
 }
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "msg", content = "data")]
-pub enum PipeResponse {
+pub enum Response {
     Ok,
     TestsFinished { success: bool },
 }
 
-impl PipeResponse {
+impl Response {
     fn unwrap_ok(self) {
         assert!(matches!(self, Self::Ok), "Unexpected response: {self:?}");
     }
@@ -34,8 +33,8 @@ impl PipeResponse {
     // TODO: proper err type
     fn unwrap_tests_finished(self) -> Result<(), ()> {
         match self {
-            PipeResponse::TestsFinished { success: true } => Ok(()),
-            PipeResponse::TestsFinished { success: false } => Err(()),
+            Response::TestsFinished { success: true } => Ok(()),
+            Response::TestsFinished { success: false } => Err(()),
             _ => panic!("Unexpected response: {self:?}"),
         }
     }
@@ -56,13 +55,13 @@ impl Client {
         }
     }
 
-    fn call(&mut self, request: PipeRequest) -> PipeResponse {
+    fn call(&mut self, request: Request) -> Response {
         self.socket.send(request);
         self.socket.recv()
     }
 
     pub fn set_env_var(&mut self, name: impl Into<String>, value: impl Into<String>) {
-        let req = PipeRequest::SetEnv {
+        let req = Request::SetEnv {
             name: name.into(),
             value: value.into(),
         };
@@ -79,7 +78,7 @@ impl Client {
     ) {
         let file = File::create(&path).unwrap();
         serde_json::to_writer_pretty(file, &value).unwrap();
-        let req = PipeRequest::EnqueueData {
+        let req = Request::EnqueueData {
             key: key.into(),
             path,
         };
@@ -87,11 +86,7 @@ impl Client {
     }
 
     pub fn ready(&mut self) -> Result<(), ()> {
-        self.call(PipeRequest::Ready).unwrap_tests_finished()
-    }
-
-    pub fn finalize(mut self) {
-        self.call(PipeRequest::Finalize).unwrap_ok()
+        self.call(Request::Ready).unwrap_tests_finished()
     }
 }
 
@@ -99,12 +94,12 @@ impl Client {
 mod tests {
     use serde_json::json;
 
-    use super::PipeRequest;
+    use super::Request;
 
     // TODO: the same for response
     #[test]
     fn pipe_request_serde() {
-        let msg = PipeRequest::SetEnv {
+        let msg = Request::SetEnv {
             name: "FOO".to_string(),
             value: "bar/baz".to_string(),
         };

@@ -1,6 +1,7 @@
 use std::env;
 
-use anyhow::Result;
+use anyhow::{Result, Context as _};
+use async_ctrlc::CtrlC;
 use log::info;
 
 use crate::{config::Config, fixture::FixtureProcess};
@@ -30,12 +31,13 @@ fn main() {
 
     // FIXME: set smol max blocking threads to reasonable value https://docs.rs/blocking/latest/blocking/index.html
     let res = smol::block_on(async move {
-        let mut fixture = FixtureProcess::spawn(config).await?;
+        let ctrlc = CtrlC::new().context("Failed to create SIGINT handler")?;
+        let mut fixture = FixtureProcess::spawn(config, ctrlc).await?;
         fixture.serve().await?;
         fixture.join().await;
 
         Result::<()>::Ok(())
     });
 
-    res.unwrap(); // FIXME: ?
+    res.unwrap(); // FIXME:
 }

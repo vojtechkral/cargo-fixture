@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Ok, Result};
-use log::trace;
+use log::{trace, Level};
 use serde::{de::DeserializeOwned, Serialize};
 // FIXME: Windows
 use smol::{
@@ -30,7 +30,7 @@ pub struct Connection {
 impl Socket {
     pub fn new(socket_path: &Path) -> Result<Self> {
         trace!("waiting for a connection on {}", socket_path.display());
-        let rm_guard = RmGuard(socket_path.to_owned());
+        let rm_guard = RmGuard::new(socket_path.to_owned(), Level::Trace);
         let socket = UnixListener::bind(socket_path)
             .with_context(|| format!("Could not create a socket at {}", socket_path.display()))?;
         Ok(Self {
@@ -56,8 +56,6 @@ impl Socket {
 }
 
 impl Connection {
-    // FIXME: trace logs
-
     pub async fn send<T>(&mut self, msg: T) -> Result<()>
     where
         T: Serialize + Debug,
@@ -73,7 +71,7 @@ impl Connection {
             .context("Error writing fixture process socket")
     }
 
-    pub async fn recv<T>(&mut self) -> Result<T>
+    pub async fn recv<T>(&mut self) -> Result<Option<T>>
     where
         T: DeserializeOwned,
     {
@@ -84,12 +82,12 @@ impl Connection {
             .await
             .context("Error reading fixture process socket")?;
         if num_read == 0 {
-            // FIXME: EOF/hangup, handle
+            return Ok(None);
         }
         let msg = self.buffer.trim();
         trace!("socket recv: `{}`", msg);
         let msg = serde_json::from_str(&msg)
             .with_context(|| format!("Error deserializing message: `{msg}`"))?;
-        Ok(msg)
+        Ok(Some(msg))
     }
 }

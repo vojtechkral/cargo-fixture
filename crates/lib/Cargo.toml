@@ -7,7 +7,7 @@ license = "Apache-2.0"
 keywords = ["rust", "cargo", "testing"] # TODO: more?
 edition = "2021"
 
-# TODO: ensure sync with top-level pkg ^
+# TODO: ensure deps shared with binary have same versions
 
 [lib]
 name = "cargo_fixture"

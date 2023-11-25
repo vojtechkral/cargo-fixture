@@ -13,6 +13,7 @@ mod logger;
 mod utils;
 
 // TODO: error handling
+// TODO: config through Cargo.toml meta???
 // TODO: fixture data keep flag?
 
 // cargo locate-project -> current Cargo.toml - nope, doesn't do -p => use metadata

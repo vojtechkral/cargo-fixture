@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, process};
 
 use anyhow::{Context as _, Result};
 use async_ctrlc::CtrlC;
@@ -14,7 +14,6 @@ mod utils;
 
 // TODO: error handling
 // TODO: fixture data keep flag?
-// TODO: ctrl-c
 
 // cargo locate-project -> current Cargo.toml - nope, doesn't do -p => use metadata
 // cargo metadata -> target dir
@@ -29,15 +28,15 @@ fn main() {
 
     info!("setting up...");
 
-    // FIXME: set smol max blocking threads to reasonable value https://docs.rs/blocking/latest/blocking/index.html
     let res = smol::block_on(async move {
         let ctrlc = CtrlC::new().context("Failed to create SIGINT handler")?;
         let mut fixture = FixtureProcess::spawn(config, ctrlc).await?;
-        fixture.serve().await?;
+        let status = fixture.serve().await?;
         fixture.join().await;
 
-        Result::<()>::Ok(())
+        Result::<_>::Ok(status)
     });
 
-    res.unwrap(); // FIXME:
+    let status = res.unwrap(); // FIXME:
+    process::exit(status)
 }

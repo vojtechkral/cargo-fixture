@@ -22,6 +22,7 @@ pub struct FixtureProcess {
     socket: Connection,
     ctrlc: CtrlC,
     version_checked: bool,
+    test_status: i32,
     data_tmp_files: Vec<RmGuard<PathBuf>>,
 }
 
@@ -68,16 +69,17 @@ impl FixtureProcess {
             socket,
             ctrlc,
             version_checked: false,
+            test_status: 0,
             data_tmp_files: vec![],
         })
     }
 
-    pub async fn serve(&mut self) -> Result<()> {
+    pub async fn serve(&mut self) -> Result<i32> {
         let mut run = true;
         while run {
             let Some(resp) = self.recv().await? else {
                 self.run_tests();
-                return Ok(());
+                return Ok(self.test_status);
             };
             let resp = match resp {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),
@@ -92,7 +94,7 @@ impl FixtureProcess {
             self.socket.send(resp).await.expect("FIXME:"); // TODO: the connection may no longer be writeable
         }
 
-        Ok(())
+        Ok(self.test_status)
     }
 
     async fn recv(&mut self) -> Result<Option<Request>> {
@@ -136,20 +138,21 @@ impl FixtureProcess {
         Response::Ok
     }
 
-    fn handle_ready(&self) -> Response {
+    fn handle_ready(&mut self) -> Response {
         let success = self.run_tests();
-        Response::TestsFinished { success }
+        let resp = Response::TestsFinished { success };
+        info!("tearing down...");
+        resp
     }
 
-    fn run_tests(&self) -> bool {
-        // TODO: propagate error status as exit status
-
+    fn run_tests(&mut self) -> bool {
         let mut test_cmd = self.config.test_cmd();
         info!("running {}", test_cmd.display());
         test_cmd
             .status()
             .map(|status| {
                 debug!("test command: {status:?}");
+                self.test_status = status.code().unwrap_or(1);
                 status.success()
             })
             .map_err(|err| {

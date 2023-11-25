@@ -1,6 +1,6 @@
 [package]
 name = "cargo-fixture"
-version = "0.1.1"
+version = "0.9.0"
 authors = ["Vojtech Kral"]
 description = "FIXME: descr"
 license = "Apache-2.0"

@@ -1,6 +1,6 @@
 use std::env;
 
-use anyhow::{Result, Context as _};
+use anyhow::{Context as _, Result};
 use async_ctrlc::CtrlC;
 use log::info;
 

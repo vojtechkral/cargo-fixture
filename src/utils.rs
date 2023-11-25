@@ -1,8 +1,4 @@
-use std::{
-    fmt, fs,
-    path::Path,
-    process::Command,
-};
+use std::{fmt, fs, path::Path, process::Command};
 
 use log::{log, warn, Level};
 
@@ -29,14 +25,15 @@ impl<'a> fmt::Display for CommandPrint<'a> {
 }
 
 #[derive(Debug)]
-pub struct RmGuard<P: AsRef<Path>>
-{
+pub struct RmGuard<P: AsRef<Path>> {
     path: P,
-    log_level: Level
+    log_level: Level,
 }
 
 impl<P: AsRef<Path>> RmGuard<P> {
-    pub fn new(path: P, log_level: Level) -> Self { Self { path, log_level } }
+    pub fn new(path: P, log_level: Level) -> Self {
+        Self { path, log_level }
+    }
 }
 
 impl<P> Drop for RmGuard<P>

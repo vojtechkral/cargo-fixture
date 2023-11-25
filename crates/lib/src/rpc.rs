@@ -6,12 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::socket::Socket;
 
-// FIXME: rename these
-
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "msg", content = "data")]
 pub enum Request {
+    Version { major: u32 },
     SetEnv { name: String, value: String },
     EnqueueData { key: String, path: PathBuf },
     Ready,
@@ -49,10 +48,11 @@ pub struct Client {
 impl Client {
     pub fn connect() -> Self {
         let socket_path = PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").expect("TODO:"));
-
-        Self {
-            socket: Socket::connect(&socket_path),
-        }
+        let socket = Socket::connect(&socket_path);
+        let mut this = Self { socket };
+        let major = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
+        this.call(Request::Version { major }).unwrap_ok();
+        this
     }
 
     fn call(&mut self, request: Request) -> Response {

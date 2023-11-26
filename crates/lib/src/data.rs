@@ -2,7 +2,7 @@ use std::{ffi::OsStr, fs::File, path::PathBuf};
 
 use serde::de::DeserializeOwned;
 
-// FIXME: unwraps
+use crate::{Error, Result};
 
 #[macro_export]
 macro_rules! set_fixture_data {
@@ -47,13 +47,14 @@ pub fn format_path(key: impl AsRef<str>, cargo_target_tmpdir: impl AsRef<OsStr>)
 
 #[doc(hidden)]
 /// Not public API, please use the `get/set_fixture_data` macros.
-pub fn get<T>(key: impl AsRef<str>, file: PathBuf) -> T
+pub fn get<T>(key: impl AsRef<str>, file: PathBuf) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    if !file.exists() {
-        // FIXME: nice error
+    if file.exists() {
+        let file = File::open(&file)?;
+        serde_json::from_reader(file).map_err(Error::DataSerde)
+    } else {
+        Error::DataFileNotFound(key.as_ref().to_string(), file).into()
     }
-    let file = File::open(&file).unwrap();
-    serde_json::from_reader(file).unwrap()
 }

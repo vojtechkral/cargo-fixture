@@ -16,7 +16,7 @@ fn it_works() {
     let foo = env::var("FOO").unwrap();
     assert_eq!(foo, "bar");
 
-    let data = get_fixture_data!("abc" as SharedData);
+    let data = get_fixture_data!("abc" as SharedData).unwrap();
     assert_eq!(data.foo, "foo");
 }
 

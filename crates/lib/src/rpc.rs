@@ -4,7 +4,7 @@ use std::{env, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::socket::Socket;
+use crate::{socket::Socket, Error, Result};
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,16 +25,17 @@ pub enum Response {
 }
 
 impl Response {
-    fn unwrap_ok(self) {
-        assert!(matches!(self, Self::Ok), "Unexpected response: {self:?}");
+    fn as_ok(self) -> Result<()> {
+        match self {
+            Self::Ok => Ok(()),
+            _ => Error::RpcMismatch(self).into(),
+        }
     }
 
-    // TODO: proper err type
-    fn unwrap_tests_finished(self) -> Result<(), ()> {
+    fn as_tests_finished(self) -> Result<bool> {
         match self {
-            Response::TestsFinished { success: true } => Ok(()),
-            Response::TestsFinished { success: false } => Err(()),
-            _ => panic!("Unexpected response: {self:?}"),
+            Response::TestsFinished { success } => Ok(success),
+            _ => Error::RpcMismatch(self).into(),
         }
     }
 }
@@ -54,33 +55,32 @@ impl WithVersion {
     }
 }
 
-// FIXME: unwraps -> expects / lib error type
-
 pub struct Client {
     socket: Socket,
     version: u32,
 }
 
 impl Client {
-    pub fn connect() -> Self {
-        let socket_path = PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").expect("TODO:"));
-        Self {
-            socket: Socket::connect(&socket_path),
+    pub fn connect() -> Result<Self> {
+        let socket_path =
+            PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").ok_or(Error::RpcNoEnvVar)?);
+        Ok(Self {
+            socket: Socket::connect(&socket_path)?,
             version: env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap(),
-        }
+        })
     }
 
-    fn call(&mut self, request: Request) -> Response {
-        self.socket.send(WithVersion::new(self.version, request));
+    fn call(&mut self, request: Request) -> Result<Response> {
+        self.socket.send(WithVersion::new(self.version, request))?;
         self.socket.recv()
     }
 
-    pub fn set_env_var(&mut self, name: impl Into<String>, value: impl Into<String>) {
+    pub fn set_env_var(&mut self, name: impl Into<String>, value: impl Into<String>) -> Result<()> {
         let req = Request::SetEnv {
             name: name.into(),
             value: value.into(),
         };
-        self.call(req).unwrap_ok();
+        self.call(req)?.as_ok()
     }
 
     #[doc(hidden)]
@@ -90,18 +90,18 @@ impl Client {
         key: impl Into<String>,
         path: PathBuf,
         value: impl Serialize,
-    ) {
-        let file = File::create(&path).unwrap();
-        serde_json::to_writer_pretty(file, &value).unwrap();
+    ) -> Result<()> {
+        let file = File::create(&path)?;
+        serde_json::to_writer_pretty(file, &value).map_err(Error::DataSerde)?;
         let req = Request::EnqueueData {
             key: key.into(),
             path,
         };
-        self.call(req).unwrap_ok()
+        self.call(req)?.as_ok()
     }
 
-    pub fn ready(&mut self) -> Result<(), ()> {
-        self.call(Request::Ready).unwrap_tests_finished()
+    pub fn ready(&mut self) -> Result<bool> {
+        self.call(Request::Ready)?.as_tests_finished()
     }
 }
 

@@ -12,6 +12,7 @@ mod fixture;
 mod logger;
 mod utils;
 
+// TODO: library asyncness (tokio, smol)
 // TODO: config through Cargo.toml meta??? (what config? feature?)
 // TODO: fixture data keep flag? - nah
 

@@ -48,8 +48,9 @@ impl Socket {
             .read_line(&mut self.buffer)
             .map_err(Error::RpcIo)?;
         if num_read == 0 {
-            // FIXME: EOF/hangup, handle
+            Err(Error::RpcHangup)
+        } else {
+            serde_json::from_str(&self.buffer.trim()).map_err(Error::RpcSerde)
         }
-        serde_json::from_str(&self.buffer.trim()).map_err(Error::RpcSerde)
     }
 }

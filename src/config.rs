@@ -7,6 +7,8 @@ use std::{
 
 mod cargo_meta;
 
+use anyhow::Result;
+
 use self::cargo_meta::CargoMetadata;
 use crate::cli::Cli;
 
@@ -18,7 +20,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(cli: Cli) -> Self {
+    pub fn new(cli: Cli) -> Result<Self> {
         let cargo_exe: PathBuf = env::var_os("CARGO")
             .unwrap_or_else(|| {
                 env::set_var("CARGO", "cargo");
@@ -26,17 +28,17 @@ impl Config {
             })
             .into();
 
-        let metadata = CargoMetadata::read(&cargo_exe, &cli.args.cargo_flags_common);
+        let metadata = CargoMetadata::read(&cargo_exe, &cli.args.cargo_flags_common)?;
 
         let target_dir = metadata.target_dir().clone();
         let pid = process::id();
         let socket_path = target_dir.join(&format!(".cargo-fixture-{pid}.sock"));
 
-        Self {
+        Ok(Self {
             cli,
             cargo_exe,
             socket_path,
-        }
+        })
     }
 
     pub fn fixture_cmd(&self) -> Command {

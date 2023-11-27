@@ -10,7 +10,6 @@ use crate::{socket::Socket, Error, Result};
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "msg", content = "data")]
 pub enum Request {
-    Version { major: u32 },
     SetEnv { name: String, value: String },
     EnqueueData { key: String, path: PathBuf },
     Ready,

@@ -1,6 +1,6 @@
 use std::{env, future::Future, path::PathBuf, process::ExitStatus};
 
-use anyhow::{anyhow, bail, Context, Error, Result};
+use anyhow::{bail, Context, Error, Result};
 use async_ctrlc::CtrlC;
 use cargo_fixture::rpc::{Request, Response, WithVersion};
 use futures_util::{pin_mut, select, FutureExt, TryFutureExt as _};
@@ -9,7 +9,7 @@ use smol::process::{Child, Command};
 
 use crate::{
     config::Config,
-    utils::{CommandExt as _, RmGuard},
+    utils::{CommandExt as _, ExitStatusExt, RmGuard},
 };
 
 use self::socket::{Connection, Socket};
@@ -56,11 +56,11 @@ impl FixtureProcess {
         debug!("running {}", fixture_cmd.display());
         let mut child = Command::from(fixture_cmd)
             .spawn()
-            .context("Error launching fixture process")?;
+            .context("Error launching fixture")?;
 
         let socket = match fixture_op(socket.accept(), &mut child, &mut ctrlc).await? {
             FixtureOp::Ok(socket) => socket,
-            FixtureOp::Process(status) => return Err(Self::fixture_early_exit(status)),
+            FixtureOp::Process(status) => return status.fixture_early_exit(),
         };
 
         Ok(Self {
@@ -88,10 +88,12 @@ impl FixtureProcess {
                     run = false;
                     self.handle_ready()
                 }
-                Request::Version { .. } => todo!(), // FIXME: error
             };
 
-            self.socket.send(resp).await.expect("FIXME:"); // TODO: the connection may no longer be writeable
+            self.socket
+                .send(resp)
+                .await
+                .context("Error sending reply to fixture process")?;
         }
 
         Ok(self.test_status)
@@ -104,7 +106,7 @@ impl FixtureProcess {
         } = match fixture_op(self.socket.recv(), &mut self.child, &mut self.ctrlc).await? {
             FixtureOp::Ok(Some(req)) => req,
             FixtureOp::Ok(None) => return Ok(None),
-            FixtureOp::Process(status) => return Err(Self::fixture_early_exit(status)),
+            FixtureOp::Process(status) => return status.fixture_early_exit(),
         };
 
         if !self.version_checked {
@@ -116,14 +118,6 @@ impl FixtureProcess {
         }
 
         Ok(Some(request))
-    }
-
-    fn fixture_early_exit(status: ExitStatus) -> Error {
-        match status.code() {
-            Some(0) => anyhow!("Fixture process didn't connect to cargo fixture"),
-            Some(c) => anyhow!("Fixture process failed, exit code: {c}"),
-            None => anyhow!("Fixture process killed by a signal"),
-        }
     }
 
     fn handle_set_env(&self, name: String, value: String) -> Response {
@@ -162,7 +156,10 @@ impl FixtureProcess {
             .unwrap_or(false)
     }
 
-    pub async fn join(mut self) {
-        self.child.status().await.expect("FIXME:");
+    pub async fn join(mut self) -> Result<ExitStatus> {
+        self.child
+            .status()
+            .await
+            .context("I/O error while joining the fixture process")
     }
 }

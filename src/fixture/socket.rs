@@ -44,14 +44,12 @@ impl Socket {
             .socket
             .accept()
             .await
-            .context("Error accepting fixture process connection")?;
+            .context("Error accepting fixture connection")?;
         trace!("connection accepted");
 
         let socket = BufReader::new(socket);
         let buffer = String::with_capacity(1024);
         Ok(Connection { socket, buffer })
-
-        // FIXME: version handshake?
     }
 }
 
@@ -68,7 +66,7 @@ impl Connection {
             .get_mut()
             .write_all(msg.as_bytes())
             .await
-            .context("Error writing fixture process socket")
+            .context("Error writing fixture socket")
     }
 
     pub async fn recv<T>(&mut self) -> Result<Option<T>>
@@ -80,7 +78,7 @@ impl Connection {
             .socket
             .read_line(&mut self.buffer)
             .await
-            .context("Error reading fixture process socket")?;
+            .context("Error reading fixture socket")?;
         if num_read == 0 {
             return Ok(None);
         }

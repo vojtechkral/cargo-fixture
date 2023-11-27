@@ -1,5 +1,10 @@
-use std::{fmt, fs, path::Path, process::Command};
+use std::{
+    fmt, fs,
+    path::Path,
+    process::{Command, ExitStatus},
+};
 
+use anyhow::{bail, Context, Result};
 use log::{log, warn, Level};
 
 pub trait CommandExt {
@@ -46,5 +51,25 @@ where
         if let Err(err) = fs::remove_file(p) {
             warn!("could not remove file `{}`: {}", p.display(), err);
         }
+    }
+}
+
+pub trait ExitStatusExt {
+    fn as_result(&self) -> Result<()>;
+    fn fixture_early_exit<T>(&self) -> Result<T>;
+}
+
+impl ExitStatusExt for ExitStatus {
+    fn as_result(&self) -> Result<()> {
+        match self.code() {
+            Some(0) => Ok(()),
+            Some(c) => bail!("Exit code: {c}"),
+            None => bail!("Process killed by a signal"),
+        }
+    }
+
+    fn fixture_early_exit<T>(&self) -> Result<T> {
+        self.as_result().context("Fixture failed")?;
+        bail!("Fixture didn't connect to cargo fixture")
     }
 }

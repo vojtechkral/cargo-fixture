@@ -1,6 +1,6 @@
 use std::{env, process};
 
-use anyhow::{Context as _, Result};
+use anyhow::{bail, Context as _, Result};
 use async_ctrlc::CtrlC;
 use log::info;
 
@@ -12,15 +12,16 @@ mod fixture;
 mod logger;
 mod utils;
 
-// TODO: config through Cargo.toml meta???
-// TODO: fixture data keep flag?
+// TODO: config through Cargo.toml meta??? (what config? feature?)
+// TODO: fixture data keep flag? - nah
 
-// cargo locate-project -> current Cargo.toml - nope, doesn't do -p => use metadata
-// cargo metadata -> target dir
+const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
-    // FIXME: check if already running under fixture
-    env::set_var("CARGO_FIXTURE", "1");
+    if env::var_os(ENV_CARGO_FIXTURE).is_some() {
+        bail!("Cannot run cargo fixture inside another cargo fixture"); // TODO: test
+    }
+    env::set_var(ENV_CARGO_FIXTURE, "1");
 
     let cli = cli::parse();
     logger::init(cli.log_level);

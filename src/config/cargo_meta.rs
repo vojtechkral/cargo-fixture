@@ -19,7 +19,6 @@ pub struct CargoMetadata {
 }
 
 impl CargoMetadata {
-    // FIXME: should this be async?
     pub fn read(cargo: impl AsRef<OsStr>, flags: &[impl AsRef<OsStr>]) -> Result<Self> {
         trace!(
             "Running {} metadata --format-version 1 --no-deps",

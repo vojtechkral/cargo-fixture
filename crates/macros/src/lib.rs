@@ -17,10 +17,10 @@ pub fn with_fixture(_args: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Implementation detail of `cargo-fixture-lib`.
 #[doc(hidden)]
 #[proc_macro_attribute]
-pub fn async_if(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = TokenStream2::from(args);
+pub fn maybe_async(_args: TokenStream, input: TokenStream) -> TokenStream {
     let fun = parse_macro_input!(input as ItemFn);
     if fun.sig.asyncness.is_some() {
         return Error::new(
@@ -35,9 +35,9 @@ pub fn async_if(args: TokenStream, input: TokenStream) -> TokenStream {
     fun_async.sig.asyncness = Some(Token![async](fun.sig.fn_token.span));
 
     quote! {
-        #[cfg( #args )]
+        #[cfg(any(feature = "smol", feature = "tokio"))]
         #fun_async
-        #[cfg(not( #args ))]
+        #[cfg(not(any(feature = "smol", feature = "tokio")))]
         #fun
     }
     .into()

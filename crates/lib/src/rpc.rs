@@ -4,13 +4,7 @@ use std::{env, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use cargo_fixture_macros::async_if;
-use crate::{socket::Socket, Error, Result};
-
-// macro_rules! await_if {
-//     () => {
-//     };
-// }
+use crate::{socket::Socket, Error, Result, utils::{maybe_await, maybe_async}};
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -66,35 +60,34 @@ pub struct Client {
 }
 
 impl Client {
+    #[maybe_async]
     pub fn connect() -> Result<Self> {
         let socket_path =
             PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").ok_or(Error::RpcNoEnvVar)?);
         Ok(Self {
-            socket: Socket::connect(&socket_path)?,
+            socket: maybe_await!(Socket::connect(&socket_path))?,
             version: env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap(),
         })
     }
 
-    #[async_if(feature = "smol")]
+    #[maybe_async]
     fn call(&mut self, request: Request) -> Result<Response> {
-        self.socket.send(WithVersion::new(self.version, request))?;
-        self.socket.recv()
+        maybe_await!(self.socket.send(WithVersion::new(self.version, request)))?;
+        maybe_await!(self.socket.recv())
     }
 
-    #[async_if(feature = "smol")]
+    #[maybe_async]
     pub fn set_env_var(&mut self, name: impl Into<String>, value: impl Into<String>) -> Result<()> {
         let req = Request::SetEnv {
             name: name.into(),
             value: value.into(),
         };
 
-        #[cfg(feature = "smol")]
-        self.call(req).await?.as_ok()
-        #[cfg(not(feature = "smol"))]
-        self.call(req)?.as_ok()
+        maybe_await!(self.call(req))?.as_ok()
     }
 
     #[doc(hidden)]
+    #[maybe_async]
     /// Not public API, please use the `get/set_fixture_data` macros.
     pub fn set_fixture_data(
         &mut self,
@@ -108,11 +101,12 @@ impl Client {
             key: key.into(),
             path,
         };
-        self.call(req)?.as_ok()
+        maybe_await!(self.call(req))?.as_ok()
     }
 
+    #[maybe_async]
     pub fn ready(&mut self) -> Result<bool> {
-        self.call(Request::Ready)?.as_tests_finished()
+        maybe_await!(self.call(Request::Ready))?.as_tests_finished()
     }
 }
 

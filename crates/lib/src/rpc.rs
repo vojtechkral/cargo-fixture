@@ -4,7 +4,11 @@ use std::{env, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{socket::Socket, Error, Result, utils::{maybe_await, maybe_async}};
+use crate::{
+    socket::Socket,
+    utils::{maybe_async, maybe_await},
+    Error, Result,
+};
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]

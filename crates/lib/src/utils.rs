@@ -5,5 +5,5 @@ macro_rules! maybe_await {
     }};
 }
 
-pub(crate) use maybe_await;
 pub(crate) use cargo_fixture_macros::maybe_async;
+pub(crate) use maybe_await;

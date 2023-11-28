@@ -3,27 +3,30 @@ use std::path::Path;
 use serde::{de::DeserializeOwned, Serialize};
 
 // Unix
-#[cfg(all(unix, not(any(feature = "smol", feature = "tokio"))))]
-use std::os::unix::net::UnixStream;
 #[cfg(all(unix, feature = "smol"))]
 use smol::net::unix::UnixStream;
+#[cfg(all(unix, not(any(feature = "smol", feature = "tokio"))))]
+use std::os::unix::net::UnixStream;
 #[cfg(all(unix, feature = "tokio"))]
 use tokio::net::UnixStream;
 
 // Windows  TODO:
 #[cfg(windows)]
 use uds_windows::UnixListener; // https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
-// TODO: will need to be wrapped or something? Or converted to TcpStream?
+                               // TODO: will need to be wrapped or something? Or converted to TcpStream?
 
 // Platform common
+#[cfg(feature = "smol")]
+use smol::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 #[cfg(not(any(feature = "smol", feature = "tokio")))]
 use std::io::{BufRead as _, BufReader, Write as _};
-#[cfg(feature = "smol")]
-use smol::io::{AsyncWriteExt as _, BufReader, AsyncBufReadExt as _};
 #[cfg(feature = "tokio")]
-use tokio::io::{BufReader, AsyncWriteExt as _, AsyncBufReadExt as _};
+use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
-use crate::{Error, Result, utils::{maybe_async, maybe_await}};
+use crate::{
+    utils::{maybe_async, maybe_await},
+    Error, Result,
+};
 
 #[derive(Debug)]
 pub struct Socket {
@@ -47,10 +50,7 @@ impl Socket {
     {
         let mut msg = serde_json::to_string(&msg).map_err(Error::RpcSerde)?;
         msg.push('\n');
-        maybe_await!(self.socket
-            .get_mut()
-            .write_all(msg.as_bytes()))
-            .map_err(Error::RpcIo)?;
+        maybe_await!(self.socket.get_mut().write_all(msg.as_bytes())).map_err(Error::RpcIo)?;
         Ok(())
     }
 
@@ -60,10 +60,8 @@ impl Socket {
         T: DeserializeOwned,
     {
         self.buffer.clear();
-        let num_read = maybe_await!(self
-            .socket
-            .read_line(&mut self.buffer))
-            .map_err(Error::RpcIo)?;
+        let num_read =
+            maybe_await!(self.socket.read_line(&mut self.buffer)).map_err(Error::RpcIo)?;
         if num_read == 0 {
             Err(Error::RpcHangup)
         } else {

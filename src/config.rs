@@ -79,7 +79,7 @@ impl Config {
                 .args(add_args_harness);
             cmd
         };
-        cmd.stdin(Stdio::null())
+        cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
         cmd

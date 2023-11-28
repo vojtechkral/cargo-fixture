@@ -12,10 +12,12 @@ mod fixture;
 mod logger;
 mod utils;
 
+// FIXME: How come running through cargo test when no `test = false` in Cargo.toml works???
+// FIXME: harness args require cargo fixture -- -- --arg
+// TODO: example
 // TODO: tests
 // TODO: docs
 // TODO: config through Cargo.toml meta??? (what config? feature?)
-// TODO: fixture data keep flag? - nah
 
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 

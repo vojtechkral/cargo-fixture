@@ -52,7 +52,11 @@ impl Config {
         cmd
     }
 
-    pub fn test_cmd(&self) -> Command {
+    pub fn test_cmd(
+        &self,
+        add_args_cargo_test: Vec<String>,
+        add_args_harness: Vec<String>,
+    ) -> Command {
         let mut cmd = if let Some(exec) = self.cli.exec.get(0) {
             let mut cmd = Command::new(exec);
             cmd.args(&self.cli.exec[1..]);
@@ -62,7 +66,17 @@ impl Config {
             // NB. --features is additive
             // TODO: configurable feature name?
             cmd.args(["test", "--features", "fixture"]);
-            cmd.args(&self.cli.args.args);
+
+            let args = self.cli.args.args.as_slice();
+            let mut split = args.splitn(2, |arg| arg == "--");
+            let to_cargo_test = split.next().unwrap_or(&[]);
+            let to_harness = split.next().unwrap_or(&[]);
+
+            cmd.args(to_cargo_test)
+                .args(add_args_cargo_test)
+                .arg("--")
+                .args(to_harness)
+                .args(add_args_harness);
             cmd
         };
         cmd.stdin(Stdio::null())

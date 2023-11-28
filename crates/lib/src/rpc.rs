@@ -14,8 +14,18 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "msg", content = "data")]
 pub enum Request {
-    SetEnv { name: String, value: String },
-    EnqueueData { key: String, path: PathBuf },
+    SetEnv {
+        name: String,
+        value: String,
+    },
+    EnqueueData {
+        key: String,
+        path: PathBuf,
+    },
+    SetAdditionalArgs {
+        to_cargo_test: Option<Vec<String>>,
+        to_harness: Option<Vec<String>>,
+    },
     Ready,
 }
 
@@ -85,6 +95,34 @@ impl Client {
         let req = Request::SetEnv {
             name: name.into(),
             value: value.into(),
+        };
+
+        maybe_await!(self.call(req))?.as_ok()
+    }
+
+    #[maybe_async]
+    pub fn set_additional_cargo_test_args(
+        &mut self,
+        args: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Result<()> {
+        let to_cargo_test = Some(args.into_iter().map(Into::into).collect());
+        let req = Request::SetAdditionalArgs {
+            to_cargo_test,
+            to_harness: None,
+        };
+
+        maybe_await!(self.call(req))?.as_ok()
+    }
+
+    #[maybe_async]
+    pub fn set_additional_harness_args(
+        &mut self,
+        args: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Result<()> {
+        let to_harness = Some(args.into_iter().map(Into::into).collect());
+        let req = Request::SetAdditionalArgs {
+            to_cargo_test: None,
+            to_harness,
         };
 
         maybe_await!(self.call(req))?.as_ok()

@@ -14,6 +14,8 @@ fn main() {
     let mut fixture = Fixture::connect().unwrap();
     fixture.set_env_var("FOO", "bar").unwrap();
     set_fixture_data!(fixture, "abc", SharedData::new("foo")).unwrap();
+    // fixture.set_additional_cargo_test_args(["--help"]);
+    // fixture.set_additional_harness_args(["--help"]);
     thread::sleep(Duration::from_millis(500));
     dbg!(fixture.ready().unwrap());
 }

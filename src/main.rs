@@ -12,8 +12,8 @@ mod fixture;
 mod logger;
 mod utils;
 
-// TODO: library asyncness (tokio, smol)
-// TODO: add RPC calls to add cargo test AND harness args
+// TODO: tests
+// TODO: docs
 // TODO: config through Cargo.toml meta??? (what config? feature?)
 // TODO: fixture data keep flag? - nah
 

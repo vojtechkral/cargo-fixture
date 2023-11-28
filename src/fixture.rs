@@ -1,4 +1,4 @@
-use std::{env, future::Future, path::PathBuf, process::ExitStatus};
+use std::{env, future::Future, mem, path::PathBuf, process::ExitStatus};
 
 use anyhow::{bail, Context, Error, Result};
 use async_ctrlc::CtrlC;
@@ -22,6 +22,8 @@ pub struct FixtureProcess {
     socket: Connection,
     ctrlc: CtrlC,
     version_checked: bool,
+    args_to_cargo_test: Vec<String>,
+    args_to_harness: Vec<String>,
     test_status: i32,
     data_tmp_files: Vec<RmGuard<PathBuf>>,
 }
@@ -69,6 +71,8 @@ impl FixtureProcess {
             socket,
             ctrlc,
             version_checked: false,
+            args_to_cargo_test: vec![],
+            args_to_harness: vec![],
             test_status: 0,
             data_tmp_files: vec![],
         })
@@ -84,6 +88,10 @@ impl FixtureProcess {
             let resp = match resp {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),
                 Request::EnqueueData { key, path } => self.handle_enqueue_data(key, path),
+                Request::SetAdditionalArgs {
+                    to_cargo_test,
+                    to_harness,
+                } => self.handle_set_add_args(to_cargo_test, to_harness),
                 Request::Ready => {
                     run = false;
                     self.handle_ready()
@@ -132,6 +140,17 @@ impl FixtureProcess {
         Response::Ok
     }
 
+    fn handle_set_add_args(
+        &mut self,
+        to_cargo_test: Option<Vec<String>>,
+        to_harness: Option<Vec<String>>,
+    ) -> Response {
+        debug!("set additional args to cargo test: {to_cargo_test:?}, to harness: {to_harness:?}");
+        to_cargo_test.map(|args| self.args_to_cargo_test = args);
+        to_harness.map(|args| self.args_to_harness = args);
+        Response::Ok
+    }
+
     fn handle_ready(&mut self) -> Response {
         let success = self.run_tests();
         let resp = Response::TestsFinished { success };
@@ -140,7 +159,11 @@ impl FixtureProcess {
     }
 
     fn run_tests(&mut self) -> bool {
-        let mut test_cmd = self.config.test_cmd();
+        let add_args_to_cargo_test = mem::take(&mut self.args_to_cargo_test);
+        let add_args_to_harness = mem::take(&mut self.args_to_harness);
+        let mut test_cmd = self
+            .config
+            .test_cmd(add_args_to_cargo_test, add_args_to_harness);
         info!("running {}", test_cmd.display());
         test_cmd
             .status()

@@ -4,7 +4,13 @@ use std::{env, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use cargo_fixture_macros::async_if;
 use crate::{socket::Socket, Error, Result};
+
+// macro_rules! await_if {
+//     () => {
+//     };
+// }
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -69,16 +75,22 @@ impl Client {
         })
     }
 
+    #[async_if(feature = "smol")]
     fn call(&mut self, request: Request) -> Result<Response> {
         self.socket.send(WithVersion::new(self.version, request))?;
         self.socket.recv()
     }
 
+    #[async_if(feature = "smol")]
     pub fn set_env_var(&mut self, name: impl Into<String>, value: impl Into<String>) -> Result<()> {
         let req = Request::SetEnv {
             name: name.into(),
             value: value.into(),
         };
+
+        #[cfg(feature = "smol")]
+        self.call(req).await?.as_ok()
+        #[cfg(not(feature = "smol"))]
         self.call(req)?.as_ok()
     }
 

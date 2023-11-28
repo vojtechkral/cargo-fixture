@@ -311,6 +311,7 @@ dependencies = [
  "cargo-fixture-macros",
  "serde",
  "serde_json",
+ "smol",
  "thiserror",
 ]
 

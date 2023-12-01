@@ -3,10 +3,11 @@ use std::env;
 use cargo_fixture::with_fixture;
 use sqlx::postgres::PgPoolOptions;
 
-#[with_fixture]
 #[tokio::test]
-async fn postgres_connect_basic() {
-    let postgres_uri = env::var("POSTGRES_URI").unwrap();
+#[with_fixture]
+async fn postgres_connect_basic(#[env] postgres_uri: String) {
+// async fn postgres_connect_basic() {
+    // let postgres_uri = env::var("POSTGRES_URI").unwrap();
 
     let pool = PgPoolOptions::new()
         .max_connections(1)

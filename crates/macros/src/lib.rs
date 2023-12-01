@@ -1,18 +1,26 @@
 extern crate proc_macro;
 
+use std::mem;
+
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
-use syn::{parse_macro_input, Error, ItemFn, Token};
+use quote::{quote, ToTokens};
+use syn::{parse_macro_input, parse_quote, Error, FnArg, ItemFn, Signature, Token};
+use types::{TestFn, WrapFn};
+
+mod types;
 
 /// FIXME: docs
 #[proc_macro_attribute]
 pub fn with_fixture(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let input = TokenStream2::from(input);
+    let input = parse_macro_input!(input as TestFn);
+    let wrapped = WrapFn::new(input)
+        .map(|w| w.into_token_stream())
+        .unwrap_or_else(Error::into_compile_error);
 
     quote! {
         #[cfg_attr(not(feature = "fixture"), ignore = "only run under cargo fixture")]
-        #input
+        #wrapped
     }
     .into()
 }

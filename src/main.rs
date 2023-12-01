@@ -1,12 +1,14 @@
 use std::{env, process};
 
-use anyhow::{bail, Context as _, Result};
+use anyhow::{bail, Context as _, Result, Ok};
 use async_ctrlc::CtrlC;
 use log::info;
 
 use crate::{config::Config, fixture::FixtureProcess, utils::ExitStatusExt};
 
 mod cli;
+mod cli_;
+mod cli__;
 mod config;
 mod fixture;
 mod logger;
@@ -25,12 +27,22 @@ mod utils;
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
+    let cli__ = cli__::parse();
+    dbg!(cli__);
+    return Ok(());
+
+    let cli_ = cli_::cli_().run();
+    dbg!(cli_);
+    return Ok(());
+
     if env::var_os(ENV_CARGO_FIXTURE).is_some() {
         bail!("Cannot run cargo fixture inside another cargo fixture"); // TODO: test
     }
     env::set_var(ENV_CARGO_FIXTURE, "1");
 
     let cli = cli::parse();
+    dbg!(cli);
+    return Ok(());
     logger::init(cli.log_level);
     let config = Config::new(cli)?;
 

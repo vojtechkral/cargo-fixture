@@ -394,6 +394,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bpaf"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "565688a36ddfcfc189cc927c94a6b69cc96c9f8a69030151ae8f0ed2b54a2ad3"
+dependencies = [
+ "bpaf_derive",
+]
+
+[[package]]
+name = "bpaf_derive"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b9b7235706863579f117a6d782a949da90ed0d49bbf633075cad4061d743ff9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,6 +437,7 @@ version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-ctrlc",
+ "bpaf",
  "cargo-fixture-lib",
  "clap",
  "futures-util",
@@ -426,6 +447,7 @@ dependencies = [
  "serde_json",
  "smol",
  "stderrlog",
+ "strum",
 ]
 
 [[package]]
@@ -1713,6 +1735,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustversion"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+
+[[package]]
 name = "ryu"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2152,6 +2180,28 @@ dependencies = [
  "finl_unicode",
  "unicode-bidi",
  "unicode-normalization",
+]
+
+[[package]]
+name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.39",
 ]
 
 [[package]]

@@ -67,8 +67,10 @@ impl clap::Args for Args {
             Arg::new("args")
                 .num_args(1..)
                 .trailing_var_arg(true)
+                // .action(ArgAction::Append)
                 .allow_hyphen_values(true)
                 .value_parser(value_parser!(OsString))
+                .value_delimiter(None)
                 .help("cargo test flags/arguments or any command if -x is used"),
         )
         .after_help({

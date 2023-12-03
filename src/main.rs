@@ -29,6 +29,9 @@ mod utils;
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
+    dbg!(cli_roll::FLAGS);
+    return Ok(());
+
     // let cli = cli_nom::parse();
     // dbg!(cli);
     // return Ok(());

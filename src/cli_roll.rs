@@ -20,7 +20,7 @@ pub struct Cli {
 
 macro_rules! flags {
     ( $({ $($tt:tt)+ })+ ) => {
-        static FLAGS: &[Flag] = &[
+        pub static FLAGS: &[Flag] = &[
             $(flags!(@start [] $($tt)+ ),)+
         ];
     };
@@ -33,7 +33,6 @@ macro_rules! flags {
     (@short [$short:expr] --$long:ident $($tt:tt)+) => { flags!(@long [$short, stringify!($long)] $($tt)+) };
     (@short [$short:expr] $($tt:tt)+) => { flags!(@flags [$short, None] $($tt)+) };
 
-    // parse --foo-bar-baz style flags
     (@long [$short:expr, $long:expr] -$cont:ident $($tt:tt)+) => { flags!(@long [$short, concat!($long, "-", stringify!($cont))] $($tt)+) };
     (@long [$short:expr, $long:expr] $($tt:tt)+) => { flags!(@flags [$short, Some($long)] $($tt)+) };
 
@@ -55,35 +54,10 @@ macro_rules! flags {
         }
     };
 
-    // (@) => {};
-
-    // (@flagdef -$short:ident --$long:ident $($help:literal)? : $action:ident $([$cargo_kind:ident])?) => {
-    //     flags!(@flagdef Some(flags!(@char $short)), Some(stringify!($long)), $($help)?, $action)
-    // };
-    // (@flagdef -$short:ident $($help:literal)? : $action:ident $([$cargo_kind:ident])?) => {
-    //     flags!(@flagdef Some(flags!(@char $short)), None, $($help)?, $action)
-    // };
-    // (@flagdef --$long:ident $($help:literal)? : $action:ident $([$cargo_kind:ident])?) => {
-    //     flags!(@flagdef None, Some(stringify!($long)), $($help)?, $action)
-    // };
-
-    // (@flagdef $short:expr, $long:expr, $($help:literal)?, $action:ident $([$cargo_kind:ident])?) => {
-    //     Flag {
-    //         short: $short,
-    //         long: $long,
-    //         action: Action::$action,
-    //         help: flags!(@help $($help)?),
-    //         cargo_kind: flags!(@cargo_kind $($cargo_kind)?),
-    //     }
-    // };
-
-    // (@help $help:literal) => { $help };
-    // (@help) => { "" };
-
-    // (@cargo_kind $kind:ident) => { Some($kind) };
-    // (@cargo_kind) => { None };
-
     // Just the ones I need lol
+    (@char r) => { 'r' };
+    (@char j) => { 'j' };
+    (@char p) => { 'p' };
     (@char A) => { 'A' };
     (@char F) => { 'F' };
     (@char h) => { 'h' };
@@ -103,24 +77,33 @@ flags! {
     { --version   "" : Version }
 
     // Common cargo args
-        { -q --quiet  : CargoFlag [All] }
-        { -v --verbose "" : CargoFlag }
-        { -Z "" : CargoFlag }
-        { --color "" : CargoFlag }
-        { --config "" : CargoFlag }
-        // Feature Selection:
-        { -F --features "" : CargoFlag }
-        { --all-features "" : CargoFlag }
-        { --no-default-features "" : CargoFlag }
-        // Manifest Options:
-        { --manifest-path "" : CargoFlag }
-        { --frozen "" : CargoFlag }
-        { --locked "" : CargoFlag }
-        { --offline "" : CargoFlag }
+    { -q --quiet               : CargoFlag [All] }
+    { -v --verbose             : CargoFlag [All] }
+    { -Z                       : CargoFlag [All] }
+    { --color                  : CargoFlag [All] }
+    { --config                 : CargoFlag [All] }
+    { -F --features            : CargoFlag [All] }
+    { --all-features           : CargoFlag [All] }
+    { --no-default-features    : CargoFlag [All] }
+    { --manifest-path          : CargoFlag [All] }
+    { --frozen                 : CargoFlag [All] }
+    { --locked                 : CargoFlag [All] }
+    { --offline                : CargoFlag [All] }
 
     // Common cargo test args
+    { --ignore-rust-version    : CargoFlag [Test] }
+    { --future-incompat-report : CargoFlag [Test] }
+    { -p --package             : CargoFlag [Test] } // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
+    { -j --jobs                : CargoFlag [Test] }
+    { -r --release             : CargoFlag [Test] }
+    { --profile                : CargoFlag [Test] }
+    { --target                 : CargoFlag [Test] }
+    { --target-dir             : CargoFlag [Test] }
+    { --unit-graph             : CargoFlag [Test] }
+    { --timings                : CargoFlag [Test] }
 }
 
+#[derive(Debug)]
 enum Action {
     /// Does not take value, boolean presence.
     Flag,
@@ -142,12 +125,14 @@ enum Action {
     Version,
 }
 
+#[derive(Debug)]
 enum CargoCommonKind {
     All,
     Test,
 }
 
-struct Flag {
+#[derive(Debug)]
+pub struct Flag {
     short: Option<char>,
     long: Option<&'static str>,
     action: Action,

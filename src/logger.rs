@@ -3,11 +3,12 @@ use log::{LevelFilter, Log, Metadata, Record};
 use strum::EnumString;
 
 // TODO: move to cli
-#[derive(EnumString, ValueEnum, Clone, Copy, Debug)]
+#[derive(EnumString, ValueEnum, Clone, Copy, Default, Debug)]
 #[clap(rename_all = "lower")]
 #[strum(ascii_case_insensitive)]
 pub enum LogLevel {
     Off,
+    #[default]
     Info,
     Debug,
     Trace,

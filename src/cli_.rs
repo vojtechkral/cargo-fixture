@@ -1,88 +1,104 @@
-use std::{ffi::{OsString, OsStr}, env, iter};
+// Stav: bpafem by to šlo, jsou použitý nějaký nehezký triky, a bylo by potřeba dodělat
+// editování helpu (nahrazení '=') a parsing common cargo flags.
+// Otázka je, jestli to má smysl, když je to potřeba až tak hodně ohýbat.
 
-use bpaf::{Bpaf, Parser, short, construct, doc::Style};
+use std::{
+    cell::Cell,
+    env,
+    ffi::{OsStr, OsString},
+    iter, process,
+};
+
+use bpaf::{batteries::get_usage, construct, doc::Style, short, Bpaf, Parser};
 
 use crate::logger::LogLevel;
 
 pub fn parse() -> Cli_ {
-    // FIXME: explain
-    // let mut args = env::args_os().skip(1).peekable();
-    // let arg0 = OsString::from("cargo fixture");
-    // if args.peek().map(|arg| arg.as_os_str()) == Some(OsStr::new("fixture")) {
-    //     args.next().unwrap();
-    //     // TODO: test this
-    // }
-    // let args: Vec<_> = iter::once(arg0).chain(args).collect();
-    // match Commands::parse_from(args) {
-    //     Commands::Fixture(fixture) => fixture,
-    // }
-    // cli_().run_inner(&args[..]).expect("FIXME:")
-    cli_().run()
+    let before_double_dash = Cell::new(true);
+    let (args, harness_args) = env::args_os()
+        .filter(|arg| {
+            if arg == "--" {
+                before_double_dash.set(false);
+                false
+            } else {
+                true
+            }
+        })
+        .partition::<Vec<_>, _>(|_| before_double_dash.get());
+
+    cli_()
+        .run_inner(&args[..])
+        .map_err(|err| {
+            process::exit(err.exit_code());
+        })
+        .unwrap()
 }
 
+// NB. The `options("fixture")` annotation takes care of the optional cargo-generated first argument - extension name.
 #[derive(Bpaf, Debug)]
-#[bpaf(options("fixture"))]
+#[bpaf(options("fixture"), version)]
 pub struct Cli_ {
-
     /// Set stderr logging level
-    /* value_enum, default_value_t = LogLevel::Info */
-    // #[bpaf(external, short('L'))]
     #[bpaf(short('L'), fallback(LogLevel::Info))]
     pub log_level: LogLevel,
 
-    /// Pass a flag/argument to the fixture binary; use multiple times to pass several arguments
-    // #[bpaf(short = 'A', value_name = "FLAG|ARG", allow_hyphen_values = true)]
-    // #[bpaf(short('A'), any("REST", Some), many)]
-    // #[bpaf(any("REST", Some), many)]
-    // pub fixture_args: OsString,
-    // pub fixture_args: Vec<OsString>,
-    // #[bpaf(short('A'), argument("FLAG|ARG"))]
-    #[bpaf(external(fixture_arg), many, help("pokus"))]
+    #[bpaf(external(fixture_arg), many)]
     pub fixture_args: Vec<OsString>,
-    // pub fixture_args: Vec<FixtureArg>,
 
-    // // TODO: keep fixture data flag?
-    // /// Instead of running cargo test [args...] run the specified command and pass it all remaining arguments
-    // #[bpaf(short = 'x', allow_hyphen_values = true, num_args = 1.., value_name = "ARGS")]
-    // pub exec: Vec<OsString>,
+    #[bpaf(external(exec_args))]
+    pub exec: Vec<OsString>,
 
-    // /// Print version
-    // #[bpaf(long, action = ArgAction::Version)]
-    // version: (),
-
-    // #[clap(flatten)]
-    // pub args: Args,
+    #[bpaf(
+        any("ARGS", not_auto_flags),
+        many,
+        hide,
+        custom_usage("[cargo test args...]")
+    )]
+    pub cargo_args: Vec<OsString>,
 }
 
-// fn fixture_args() -> impl Parser<Vec<OsString>> {
-//     short('A')
-//         .argument("FLAG|ARG")
-//         .any()
-//         .many()
-// }
-
+/// Parse one `-A arg/flag` argument.
 fn fixture_arg() -> impl Parser<OsString> {
-    // let flag = bpaf::short('A').help("help on flag").req_flag(());
-    let flag = bpaf::short('A').help("help on flag").req_flag("hm?");
-    let value = bpaf::any("FLAG|ARG", Some).hide();
+    // This parser parses the -A --flag form
+    let a = bpaf::short('A').req_flag("");
+    let arg = bpaf::any("ARG", Some).hide();
+    let flag = construct!(a, arg).map(|t| t.1).hide();
 
+    // This one parses the -A arg form
+    let arg = bpaf::short('A')
+        .help("Pass a flag or argument to the fixture binary (may be used multiple times)")
+        .argument::<OsString>("FLAG|ARG");
 
-    let anybased = construct!(flag, value)
-        .map(|(_, v)| v)
-        .custom_usage("-A arg|--flag").hide();
-
-    let alt = bpaf::short('A').help("alt").argument::<OsString>("ARG");
-    construct!([alt, anybased])
+    // Parses -A --flag or, if that didn't work, -A arg
+    construct!([arg, flag])
 }
 
-// #[derive(Bpaf, Debug)]
-// #[bpaf(adjacent)]
-// pub struct FixtureArg_ {
-//     // doc comment?
-//     #[bpaf(short('A'))]
-//     flag: (),
+fn exec_args() -> impl Parser<Vec<OsString>> {
+    // HACK:
+    // This flag is defined only to generate the right help - with a meta arg,
+    // the real flag can't have a meta argument.
+    // This flag never parses due to the guard.
+    let fake_flag = bpaf::short('x')
+        .argument::<OsString>("ARGS...")
+        .help(
+            "Run the specified command, instead of cargo test, passing it all remaining arguments",
+        )
+        .guard(|_| false, "")
+        .map(|_| ());
 
-//     // doc comment?
-//     #[bpaf(any("FLAG|ARG", Some))]
-//     arg: OsString,
-// }
+    let actual_flag = bpaf::short('x').req_flag("").map(|_| ()).hide();
+
+    let args = bpaf::any("ARGS", Some).some("").hide();
+    let flag = construct!([fake_flag, actual_flag]);
+    construct!(flag, args).map(|t| t.1).fallback(vec![])
+}
+
+/// bpaf doesn't exclude auto-flags like --version or --help from `any`.
+fn not_auto_flags(arg: OsString) -> Option<OsString> {
+    const auto_flags: &[&str] = &["-V", "--version", "-h", "--help"];
+    if auto_flags.iter().any(|&f| arg == f) {
+        None
+    } else {
+        Some(arg)
+    }
+}

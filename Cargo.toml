@@ -13,18 +13,19 @@ name = "cargo-fixture"
 [dependencies]
 anyhow = "1"
 async-ctrlc = "1.2.0"
-bpaf = { version = "0.9", features = ["derive"] }
+bpaf = { version = "0.9", features = ["derive", "batteries"] }
 clap = { version = "4.4", default-features = false, features = ["std", "help", "usage", "error-context", "derive"] }
 futures-util = "0.3.29"
 log = "0.4"
+nom = "7.1.3"
 os_str_bytes = "6.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 smol = "1.3.0"
 stderrlog = "0.5"
+strum = { version = "0.25.0", features = ["derive"] }
 
 cargo-fixture-lib = { path = "crates/lib" }
-strum = { version = "0.25.0", features = ["derive"] }
 
 [workspace]
 members = [
@@ -33,3 +34,6 @@ members = [
     "example",
     "scratch/pk", # FIXME: tmp
 ]
+
+# [patch.crates-io]
+# nom = { path = "../nom" }

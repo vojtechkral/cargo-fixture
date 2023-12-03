@@ -1,9 +1,11 @@
 use proc_macro2::{Ident, TokenStream, TokenTree};
-use quote::{ToTokens, TokenStreamExt, quote};
+use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
     braced,
     parse::{Parse, ParseStream},
-    token, Attribute, Error, Expr, FnArg, Pat, Result, Signature, Token, Visibility, parse_quote, punctuated::Punctuated, ExprCall,
+    parse_quote,
+    punctuated::Punctuated,
+    token, Attribute, Error, Expr, ExprCall, FnArg, Pat, Result, Signature, Token, Visibility,
 };
 
 /// FIXME: mention tokio
@@ -67,7 +69,9 @@ impl Parse for TestFn {
 
 impl ToTokens for TestFn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.outer_attrs.iter().for_each(|attr| attr.to_tokens(tokens));
+        self.outer_attrs
+            .iter()
+            .for_each(|attr| attr.to_tokens(tokens));
         self.vis.to_tokens(tokens);
         self.sig.to_tokens(tokens);
         self.brace_token.surround(tokens, |tokens| {
@@ -112,8 +116,12 @@ impl WrapFn {
 
 impl ToTokens for WrapFn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self { test_fn, outer_sig, call_expr } = self;
-        tokens.extend(quote!{
+        let Self {
+            test_fn,
+            outer_sig,
+            call_expr,
+        } = self;
+        tokens.extend(quote! {
             #outer_sig {
                 #test_fn
                 #call_expr
@@ -141,11 +149,11 @@ impl ArgKind {
         match self {
             Self::Env(ident) => {
                 let var = ident.to_string().to_uppercase();
-                parse_quote!{ ::std::env::var(#var).expect("FIXME: errmsg") }
-            },
+                parse_quote! { ::std::env::var(#var).expect("FIXME: errmsg") }
+            }
             Self::TmpData(ident) => todo!(),
-            Self::Passthrough(ident) => parse_quote!{ #ident },
-            Self::Receiver(_) => parse_quote!{ self },
+            Self::Passthrough(ident) => parse_quote! { #ident },
+            Self::Receiver(_) => parse_quote! { self },
         }
     }
 }

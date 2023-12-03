@@ -1,6 +1,6 @@
 use std::{env, process};
 
-use anyhow::{bail, Context as _, Result, Ok};
+use anyhow::{bail, Context as _, Ok, Result};
 use async_ctrlc::CtrlC;
 use log::info;
 
@@ -9,6 +9,8 @@ use crate::{config::Config, fixture::FixtureProcess, utils::ExitStatusExt};
 mod cli;
 mod cli_;
 mod cli__;
+// mod cli_nom;
+mod cli_roll;
 mod config;
 mod fixture;
 mod logger;
@@ -27,9 +29,13 @@ mod utils;
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
-    let cli__ = cli__::parse();
-    dbg!(cli__);
-    return Ok(());
+    // let cli = cli_nom::parse();
+    // dbg!(cli);
+    // return Ok(());
+
+    // let cli__ = cli__::parse();
+    // dbg!(cli__);
+    // return Ok(());
 
     let cli_ = cli_::cli_().run();
     dbg!(cli_);

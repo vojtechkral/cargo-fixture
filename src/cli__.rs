@@ -56,7 +56,6 @@ pub struct Cli {
     // /// harness args
     // #[arg(last = true)]
     // pub harness_args: Vec<OsString>,
-
     /// rest
     #[arg(allow_hyphen_values = true, num_args = 1.., value_name = "ARGS")]
     pub rest: Vec<OsString>,

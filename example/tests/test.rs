@@ -6,7 +6,7 @@ use sqlx::postgres::PgPoolOptions;
 #[tokio::test]
 #[with_fixture]
 async fn postgres_connect_basic(#[env] postgres_uri: String) {
-// async fn postgres_connect_basic() {
+    // async fn postgres_connect_basic() {
     // let postgres_uri = env::var("POSTGRES_URI").unwrap();
 
     let pool = PgPoolOptions::new()

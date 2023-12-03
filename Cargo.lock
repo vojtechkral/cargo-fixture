@@ -442,6 +442,7 @@ dependencies = [
  "clap",
  "futures-util",
  "log",
+ "nom",
  "os_str_bytes",
  "serde",
  "serde_json",

@@ -106,7 +106,6 @@ flags! {
     // cargo fixture args
     { -L                    "" : parse_value(log_level) }
     { -A                    "" : append_value_raw(fixture_args) }
-    /*
     { -x --exec <Args...>   "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments" : take_remaining(exec) }
     { -h --help             "" : help }
     { --version             "" : version }
@@ -118,13 +117,14 @@ flags! {
     { --color <WHEN>            : forward_value(cargo_common_all) }
     { --config <KEY_VALUE>      : forward_value(cargo_common_all) }
     { -F --features <FEATURES>  : forward_value(cargo_common_all) }
-    { --all-features           : forward(cargo_common_all) }
-    { --no-default-features    : forward(cargo_common_all) }
-    { --manifest-path          : forward(cargo_common_all) }
-    { --frozen                 : forward(cargo_common_all) }
-    { --locked                 : forward(cargo_common_all) }
-    { --offline                : forward(cargo_common_all) }
+    { --all-features            : forward(cargo_common_all) }
+    { --no-default-features     : forward(cargo_common_all) }
+    { --manifest-path <PATH>    : forward_value(cargo_common_all) }
+    { --frozen                  : forward(cargo_common_all) }
+    { --locked                  : forward(cargo_common_all) }
+    { --offline                 : forward(cargo_common_all) }
 
+    /*
     // Common cargo test args
     { --ignore-rust-version    : AppendFlag [Test] }
     { --future-incompat-report : AppendFlag [Test] }

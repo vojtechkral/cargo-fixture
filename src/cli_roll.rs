@@ -113,7 +113,7 @@ macro_rules! flags {
 
 // TODO: move to support mod
 macro_rules! flags {
-    (@ 
+    (@flag
         [$($acc:expr,)*]
         $(-$short:ident)?
         $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
@@ -122,7 +122,7 @@ macro_rules! flags {
         $($help:literal)?
         , $($tt:tt)*
     ) => {
-        flags!(@ [$($acc,)*
+        flags!(@flag [$($acc,)*
             Flag {
                 $( short: Some(flags!(@char $short)), )?
                 $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
@@ -140,7 +140,8 @@ macro_rules! flags {
             $($tt)*
         );
     };
-    (@ [$($acc:expr,)*]) => { 
+    (@flag [$($acc:expr,)*]) => {
+        // We're done
         pub static FLAGS: &[Flag] = &[
             $($acc,)*
         ];
@@ -175,7 +176,7 @@ macro_rules! flags {
     (@char Z) => { 'Z' };
 
     // Entry point
-    ( $($tt:tt)+ ) => { flags!(@ [] $($tt)+); };
+    ( $($tt:tt)+ ) => { flags!(@flag [] $($tt)+); };
 }
 
 flags!(
@@ -201,17 +202,16 @@ flags!(
     --offline                 forward(cargo_common_all),
 
     // Common cargo test args
-    // FIXME: args:
     --ignore-rust-version    forward(cargo_common_test),
     --future-incompat-report forward(cargo_common_test),
-    -p --package             forward(cargo_common_test), // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
-    -j --jobs                forward(cargo_common_test),
+    -p --package [SPEC]      forward_value(cargo_common_test), // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
+    -j --jobs [N]            forward_value(cargo_common_test),
     -r --release             forward(cargo_common_test),
-    --profile                forward(cargo_common_test),
-    --target                 forward(cargo_common_test),
-    --target-dir             forward(cargo_common_test),
+    --profile [NAME]         forward_value(cargo_common_test),
+    --target [TRIPLE]        forward_value(cargo_common_test),
+    --target-dir [DIR]       forward_value(cargo_common_test),
     --unit-graph             forward(cargo_common_test),
-    --timings                forward(cargo_common_test),
+    --timings [FORMATS]      forward_value(cargo_common_test),
 );
 
 #[derive(Debug)]

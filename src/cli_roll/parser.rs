@@ -70,7 +70,6 @@ macro_rules! flags {
 }
 pub(crate) use flags;
 
-
 pub struct Flag {
     pub short: Option<char>,
     pub long: Option<&'static str>,
@@ -97,7 +96,6 @@ impl fmt::Debug for Flag {
             .finish()
     }
 }
-
 
 #[derive(Debug)]
 pub struct Parser {

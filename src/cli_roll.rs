@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::logger::LogLevel;
 
 mod parser;
-use parser::{flags, Parser, Flag};
+use parser::{flags, Flag, Parser};
 
 #[derive(Default, Debug)]
 pub struct Cli {

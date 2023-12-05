@@ -111,64 +111,66 @@ macro_rules! flags {
     };
 }
 
-flags! {
-    // cargo fixture args
-    -L                    "" : parse_value(log_level),
-    -A                    "" : append_value_raw(fixture_args),
-    -x --exec <Args...>   "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments" : take_remaining(exec),
-    -h --help             "" : help,
-    --version             "" : version,
+// flags! {
+//     // cargo fixture args
+//     -L                    "" : parse_value(log_level),
+//     -A                    "" : append_value_raw(fixture_args),
+//     -x --exec <Args...>   "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments" : take_remaining(exec),
+//     -h --help             "" : help,
+//     --version             "" : version,
 
-    // Common cargo args
-    -q --quiet                : forward(cargo_common_all),
-    -v --verbose              : forward(cargo_common_all),
-    -Z <FLAG>                 : forward_value(cargo_common_all),
-    --color <WHEN>            : forward_value(cargo_common_all),
-    --config <KEY_VALUE>      : forward_value(cargo_common_all),
-    -F --features <FEATURES>  : forward_value(cargo_common_all),
-    --all-features            : forward(cargo_common_all),
-    --no-default-features     : forward(cargo_common_all),
-    --manifest-path <PATH>    : forward_value(cargo_common_all),
-    --frozen                  : forward(cargo_common_all),
-    --locked                  : forward(cargo_common_all),
-    --offline                 : forward(cargo_common_all),
+//     // Common cargo args
+//     -q --quiet                : forward(cargo_common_all),
+//     -v --verbose              : forward(cargo_common_all),
+//     -Z <FLAG>                 : forward_value(cargo_common_all),
+//     --color <WHEN>            : forward_value(cargo_common_all),
+//     --config <KEY_VALUE>      : forward_value(cargo_common_all),
+//     -F --features <FEATURES>  : forward_value(cargo_common_all),
+//     --all-features            : forward(cargo_common_all),
+//     --no-default-features     : forward(cargo_common_all),
+//     --manifest-path <PATH>    : forward_value(cargo_common_all),
+//     --frozen                  : forward(cargo_common_all),
+//     --locked                  : forward(cargo_common_all),
+//     --offline                 : forward(cargo_common_all),
 
-    // Common cargo test args
-    --ignore-rust-version    : forward(cargo_common_test),
-    --future-incompat-report : forward(cargo_common_test),
-    -p --package             : forward(cargo_common_test), // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
-    -j --jobs                : forward(cargo_common_test),
-    -r --release             : forward(cargo_common_test),
-    --profile                : forward(cargo_common_test),
-    --target                 : forward(cargo_common_test),
-    --target-dir             : forward(cargo_common_test),
-    --unit-graph             : forward(cargo_common_test),
-    --timings                : forward(cargo_common_test),
-}
+//     // Common cargo test args
+//     --ignore-rust-version    : forward(cargo_common_test),
+//     --future-incompat-report : forward(cargo_common_test),
+//     -p --package             : forward(cargo_common_test), // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
+//     -j --jobs                : forward(cargo_common_test),
+//     -r --release             : forward(cargo_common_test),
+//     --profile                : forward(cargo_common_test),
+//     --target                 : forward(cargo_common_test),
+//     --target-dir             : forward(cargo_common_test),
+//     --unit-graph             : forward(cargo_common_test),
+//     --timings                : forward(cargo_common_test),
+// }
 
-macro_rules! flags_ {
+macro_rules! flags {
     (@ 
         [$($acc:expr,)*]
         $(-$short:ident)?
         $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
-        $(<$meta:ident $($dots:tt)?>)?
+        // $(<$meta:ident $($dots:tt)?>)?
+        $([$($meta:tt)+])?
         $action:ident $(($field:ident))?
-        $help:literal
+        $($help:literal)?
         , $($tt:tt)*
     ) => {
         // (log_syntax!($($tt)*),
         // flags_!(@ [] $($tt)*)
-        flags_!(@ [$($acc,)*
+        flags!(@ [$($acc,)*
             Flag {
-                $( short: Some(flags_!(@char $short)), )?
+                $( short: Some(flags!(@char $short)), )?
                 $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
-                $( meta: Some(flags_!(@meta $meta $($dots)?)), )?
+                $( meta: Some(flags!(@meta $($meta)+)), )?
+                $( help: $help, )?
 
                 ..Flag {
                     short: None,
                     long: None,
                     parse_fn: &|parser| { parser.parse_value(|cli| { &mut cli.log_level }) },  // TODO:
-                    help: $help,
+                    help: "",
                     meta: None,
                 }
             },]
@@ -176,12 +178,13 @@ macro_rules! flags_ {
         );
     };
     (@ [$($acc:expr,)*]) => { 
-        pub static FLAGS_: &[Flag] = &[
+        pub static FLAGS: &[Flag] = &[
             $($acc,)*
         ];
      };
 
     (@meta $meta:ident ...) => { concat!(stringify!($meta), "...") };
+    (@meta $meta:ident=$meta2:ident) => { concat!(stringify!($meta), "=", stringify!($meta2)) };
     (@meta $meta:ident) => { stringify!($meta) };
 
     // Util: maps single char ident into char (just the ones I need lol)
@@ -197,21 +200,54 @@ macro_rules! flags_ {
     (@char x) => { 'x' };
     (@char Z) => { 'Z' };
 
-    // FIXME: tmp
-    (@ $($tt:tt)* ) => {
-        log_syntax!($($tt)*);
-    };
+    // // FIXME: tmp
+    // (@ $($tt:tt)* ) => {
+    //     log_syntax!($($tt)*);
+    // };
 
     // Entry point
-    ( $($tt:tt)+ ) => { flags_!(@ [] $($tt)+); };
+    ( $($tt:tt)+ ) => { flags!(@ [] $($tt)+); };
 }
 
-flags_!(
-    -x <Args...> take_remaining(exec) "help",
-    --exec <Args...> take_remaining(exec) "help",
+flags!(
+    // -x <Args...> take_remaining(exec) "help",
+    // --exec <Args...> take_remaining(exec) "help",
     // -x --exec <Args...> "help" take_remaining(exec),
-
     // -x --exec <Args...> : "help" take_remaining(exec)
+
+    // cargo fixture args
+    -L                    parse_value(log_level) "TODO:",
+    -A                    append_value_raw(fixture_args) "TODO:",
+    -x --exec [Args...]   take_remaining(exec) "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments",
+    -h --help             help "TODO:",
+    --version             version "TODO:",
+
+    // Common cargo args
+    -q --quiet                forward(cargo_common_all),
+    -v --verbose              forward(cargo_common_all),
+    -Z [FLAG]                 forward_value(cargo_common_all),
+    --color [WHEN]            forward_value(cargo_common_all),
+    --config [KEY=VALUE]      forward_value(cargo_common_all),
+    -F --features [FEATURES]  forward_value(cargo_common_all),
+    --all-features            forward(cargo_common_all),
+    --no-default-features     forward(cargo_common_all),
+    --manifest-path [PATH]    forward_value(cargo_common_all),
+    --frozen                  forward(cargo_common_all),
+    --locked                  forward(cargo_common_all),
+    --offline                 forward(cargo_common_all),
+
+    // Common cargo test args
+    // FIXME: args:
+    --ignore-rust-version    forward(cargo_common_test),
+    --future-incompat-report forward(cargo_common_test),
+    -p --package             forward(cargo_common_test), // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
+    -j --jobs                forward(cargo_common_test),
+    -r --release             forward(cargo_common_test),
+    --profile                forward(cargo_common_test),
+    --target                 forward(cargo_common_test),
+    --target-dir             forward(cargo_common_test),
+    --unit-graph             forward(cargo_common_test),
+    --timings                forward(cargo_common_test),
 );
 
 #[derive(Debug)]

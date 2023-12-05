@@ -1,14 +1,11 @@
-use std::{
-    ffi::{OsStr, OsString},
-    fmt,
-};
+use std::ffi::OsString;
 
 use anyhow::Result;
 
 use crate::logger::LogLevel;
 
-// TODO: move impl details here
-// mod parser;
+mod parser;
+use parser::{flags, Parser, Flag};
 
 #[derive(Default, Debug)]
 pub struct Cli {
@@ -21,74 +18,6 @@ pub struct Cli {
     pub cargo_common_test: Vec<OsString>,
     pub cargo_test_args: Vec<OsString>,
     pub harness_args: Vec<OsString>,
-}
-
-// TODO: move to support mod
-macro_rules! flags {
-    (@flag
-        [$($acc:expr,)*]
-        $(-$short:ident)?
-        $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
-        $([$($meta:tt)+])?
-        $action:ident $(($field:ident))?
-        $($help:literal)?
-        , $($tt:tt)*
-    ) => {
-        flags!(@flag [$($acc,)*
-            Flag {
-                $( short: Some(flags!(@char $short)), )?
-                $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
-                $( meta: Some(flags!(@meta $($meta)+)), )?
-                $( help: $help, )?
-
-                ..Flag {
-                    short: None,
-                    long: None,
-                    parse_fn: flags!(@action $action $(($field))?),
-                    help: "",
-                    meta: None,
-                }
-            },]
-            $($tt)*
-        );
-    };
-    (@flag [$($acc:expr,)*]) => {
-        // We're done
-        pub static FLAGS: &[Flag] = &[
-            $($acc,)*
-        ];
-    };
-
-    // Actions
-    (@action parse_value($field:ident)) => { &|parser| { parser.parse_value(|cli| { &mut cli.$field }) } };
-    (@action append_value_raw($field:ident)) => { &|parser| { parser.append_value_raw(|cli| { &mut cli.$field }) } };
-    (@action forward($field:ident)) => { &|parser| { parser.forward(|cli| { &mut cli.$field }) } };
-    (@action forward_value($field:ident)) => { &|parser| { parser.forward_value(|cli| { &mut cli.$field }) } };
-    (@action take_remaining($field:ident)) => { &|parser| { parser.take_remaining(|cli| { &mut cli.$field }) } };
-    (@action take_tail($field:ident)) => {};
-    (@action help) => { &|parser| { parser.help() } };
-    (@action version) => { &|parser| { parser.version() } };
-
-    // Parsing of meta args
-    (@meta $meta:ident ...) => { concat!(stringify!($meta), "...") };
-    (@meta $meta:ident=$meta2:ident) => { concat!(stringify!($meta), "=", stringify!($meta2)) };
-    (@meta $meta:ident) => { stringify!($meta) };
-
-    // Util: maps single char ident into char (just the ones I need lol)
-    (@char r) => { 'r' };
-    (@char j) => { 'j' };
-    (@char p) => { 'p' };
-    (@char A) => { 'A' };
-    (@char F) => { 'F' };
-    (@char h) => { 'h' };
-    (@char L) => { 'L' };
-    (@char q) => { 'q' };
-    (@char v) => { 'v' };
-    (@char x) => { 'x' };
-    (@char Z) => { 'Z' };
-
-    // Entry point
-    ( $($tt:tt)+ ) => { flags!(@flag [] $($tt)+); };
 }
 
 flags!(
@@ -125,106 +54,3 @@ flags!(
     --unit-graph             forward(cargo_common_test),
     --timings [FORMATS]      forward_value(cargo_common_test),
 );
-
-#[derive(Debug)]
-struct Parser {
-    dummy: u32,
-}
-
-impl Parser {
-    fn parse_value<T>(self, field: impl Fn(&mut Cli) -> &mut T) -> Self {
-        todo!();
-        self
-    }
-
-    fn append_value_raw(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
-    }
-
-    fn take_remaining(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
-    }
-
-    fn forward(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
-    }
-
-    fn forward_value(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
-    }
-
-    fn help(self) -> Self {
-        todo!();
-        self
-    }
-
-    fn version(self) -> Self {
-        todo!();
-        self
-    }
-}
-
-#[derive(Debug)]
-enum Metavar {
-    None,
-    Singular(&'static str),
-    Plural(&'static str),
-}
-
-// #[derive(Debug)]
-// enum Action {
-//     /// Takes value, must not start with a `-`.
-//     Value(fn(Cli, String) -> Result<Cli>),
-//     /// Any value, incl. starting with a `-`.
-//     RawValue,
-//     /// Take the whole following command line, incl. `-- args...`.
-//     TakeAll,
-//     /// Take all arguments after `--`.
-//     TakeTail,
-//     /// `cargo` non-value flag.
-//     AppendFlag,
-//     /// `cargo` flag with value.
-//     AppendRaw,
-//     /// Print help and exit.
-//     Help,
-//     /// Print version info and exit.
-//     Version,
-// }
-
-#[derive(Debug)]
-enum CargoCommonKind {
-    All,
-    Test,
-}
-
-pub struct Flag {
-    short: Option<char>,
-    long: Option<&'static str>,
-    // action: Box<dyn Fn(&mut Cli, &mut Parser, &OsStr) -> Result<()> + Send + Sync + 'static>,
-    parse_fn: &'static (dyn Fn(Parser) -> Parser + Send + Sync + 'static), // TODO: Result
-    help: &'static str,
-    meta: Option<&'static str>,
-}
-
-impl fmt::Debug for Flag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self {
-            short,
-            long,
-            parse_fn,
-            help,
-            meta,
-        } = self;
-        f.debug_struct("Flag")
-            .field("short", &short)
-            .field("long", &long)
-            .field("parse_fn", &(parse_fn as *const _))
-            .field("help", &help)
-            .field("meta", &meta)
-            .finish()
-    }
-}

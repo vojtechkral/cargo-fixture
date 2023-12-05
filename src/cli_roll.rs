@@ -24,13 +24,7 @@ pub struct Cli {
 }
 
 macro_rules! flags {
-    ( $({ $($tt:tt)+ })+ ) => {
-        pub static FLAGS: &[Flag] = &[
-            $(flags!(@start [] $($tt)+ ),)+
-        ];
-    };
-
-    // for each flag:
+    // Parse each definition line:
 
     (@start [] --$long:ident $($tt:tt)+ ) => { flags!(@long [None, stringify!($long)] $($tt)+) };
     (@start [] -$short:ident $($tt:tt)+ ) => { flags!(@short [Some(flags!(@char $short))] $($tt)+) };
@@ -87,8 +81,8 @@ macro_rules! flags {
         }
     };
 
-    // Map single char ident into char
-    // Just the ones I need lol
+    // Util: maps single char ident into char (just the ones I need lol):
+
     (@char r) => { 'r' };
     (@char j) => { 'j' };
     (@char p) => { 'p' };
@@ -100,44 +94,125 @@ macro_rules! flags {
     (@char v) => { 'v' };
     (@char x) => { 'x' };
     (@char Z) => { 'Z' };
+
+    // Entrypoint - split comma-separated definition lines into {}-blocks for individual parsing:
+
+    (@lines [$($blocks:tt)*] [$($current:tt)*] , $($tt:tt)*) => { flags!(@lines [$($blocks)* {$($current)*}] [] $($tt)*); };
+    (@lines [$($blocks:tt)*] [$($current:tt)*] $head:tt $($tt:tt)+) => { flags!(@lines [$($blocks)*] [$($current)* $head] $($tt)+); };
+    (@lines [$({ $($blocks:tt)* })+] []) => {
+        pub static FLAGS: &[Flag] = &[
+            $(flags!(@start [] $($blocks)* ),)+
+        ];
+     };
+
+    // (cargo fixture $($tt:tt)+) => {
+    ($($tt:tt)+) => {
+        flags!(@lines [] [] $($tt)+);
+    };
 }
 
 flags! {
     // cargo fixture args
-    { -L                    "" : parse_value(log_level) }
-    { -A                    "" : append_value_raw(fixture_args) }
-    { -x --exec <Args...>   "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments" : take_remaining(exec) }
-    { -h --help             "" : help }
-    { --version             "" : version }
+    -L                    "" : parse_value(log_level),
+    -A                    "" : append_value_raw(fixture_args),
+    -x --exec <Args...>   "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments" : take_remaining(exec),
+    -h --help             "" : help,
+    --version             "" : version,
 
     // Common cargo args
-    { -q --quiet                : forward(cargo_common_all) }
-    { -v --verbose              : forward(cargo_common_all) }
-    { -Z <FLAG>                 : forward_value(cargo_common_all) }
-    { --color <WHEN>            : forward_value(cargo_common_all) }
-    { --config <KEY_VALUE>      : forward_value(cargo_common_all) }
-    { -F --features <FEATURES>  : forward_value(cargo_common_all) }
-    { --all-features            : forward(cargo_common_all) }
-    { --no-default-features     : forward(cargo_common_all) }
-    { --manifest-path <PATH>    : forward_value(cargo_common_all) }
-    { --frozen                  : forward(cargo_common_all) }
-    { --locked                  : forward(cargo_common_all) }
-    { --offline                 : forward(cargo_common_all) }
+    -q --quiet                : forward(cargo_common_all),
+    -v --verbose              : forward(cargo_common_all),
+    -Z <FLAG>                 : forward_value(cargo_common_all),
+    --color <WHEN>            : forward_value(cargo_common_all),
+    --config <KEY_VALUE>      : forward_value(cargo_common_all),
+    -F --features <FEATURES>  : forward_value(cargo_common_all),
+    --all-features            : forward(cargo_common_all),
+    --no-default-features     : forward(cargo_common_all),
+    --manifest-path <PATH>    : forward_value(cargo_common_all),
+    --frozen                  : forward(cargo_common_all),
+    --locked                  : forward(cargo_common_all),
+    --offline                 : forward(cargo_common_all),
 
-    /*
     // Common cargo test args
-    { --ignore-rust-version    : AppendFlag [Test] }
-    { --future-incompat-report : AppendFlag [Test] }
-    { -p --package             : AppendFlag [Test] } // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
-    { -j --jobs                : AppendFlag [Test] }
-    { -r --release             : AppendFlag [Test] }
-    { --profile                : AppendFlag [Test] }
-    { --target                 : AppendFlag [Test] }
-    { --target-dir             : AppendFlag [Test] }
-    { --unit-graph             : AppendFlag [Test] }
-    { --timings                : AppendFlag [Test] }
-    */
+    --ignore-rust-version    : forward(cargo_common_test),
+    --future-incompat-report : forward(cargo_common_test),
+    -p --package             : forward(cargo_common_test), // TODO: We might need to extract this one too (?) - to get Cargo.toml meta config
+    -j --jobs                : forward(cargo_common_test),
+    -r --release             : forward(cargo_common_test),
+    --profile                : forward(cargo_common_test),
+    --target                 : forward(cargo_common_test),
+    --target-dir             : forward(cargo_common_test),
+    --unit-graph             : forward(cargo_common_test),
+    --timings                : forward(cargo_common_test),
 }
+
+macro_rules! flags_ {
+    (@ 
+        [$($acc:expr,)*]
+        $(-$short:ident)?
+        $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
+        $(<$meta:ident $($dots:tt)?>)?
+        $action:ident $(($field:ident))?
+        $help:literal
+        , $($tt:tt)*
+    ) => {
+        // (log_syntax!($($tt)*),
+        // flags_!(@ [] $($tt)*)
+        flags_!(@ [$($acc,)*
+            Flag {
+                $( short: Some(flags_!(@char $short)), )?
+                $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
+                $( meta: Some(flags_!(@meta $meta $($dots)?)), )?
+
+                ..Flag {
+                    short: None,
+                    long: None,
+                    parse_fn: &|parser| { parser.parse_value(|cli| { &mut cli.log_level }) },  // TODO:
+                    help: $help,
+                    meta: None,
+                }
+            },]
+            $($tt)*
+        );
+    };
+    (@ [$($acc:expr,)*]) => { 
+        pub static FLAGS_: &[Flag] = &[
+            $($acc,)*
+        ];
+     };
+
+    (@meta $meta:ident ...) => { concat!(stringify!($meta), "...") };
+    (@meta $meta:ident) => { stringify!($meta) };
+
+    // Util: maps single char ident into char (just the ones I need lol)
+    (@char r) => { 'r' };
+    (@char j) => { 'j' };
+    (@char p) => { 'p' };
+    (@char A) => { 'A' };
+    (@char F) => { 'F' };
+    (@char h) => { 'h' };
+    (@char L) => { 'L' };
+    (@char q) => { 'q' };
+    (@char v) => { 'v' };
+    (@char x) => { 'x' };
+    (@char Z) => { 'Z' };
+
+    // FIXME: tmp
+    (@ $($tt:tt)* ) => {
+        log_syntax!($($tt)*);
+    };
+
+    // Entry point
+    ( $($tt:tt)+ ) => { flags_!(@ [] $($tt)+); };
+}
+
+flags_!(
+    -x <Args...> take_remaining(exec) "help",
+    --exec <Args...> take_remaining(exec) "help",
+    // -x --exec <Args...> "help" take_remaining(exec),
+
+    // -x --exec <Args...> : "help" take_remaining(exec)
+);
 
 #[derive(Debug)]
 struct Parser {

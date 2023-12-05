@@ -1,3 +1,7 @@
+// #![feature(log_syntax)]
+// #![recursion_limit = "256"]
+#![recursion_limit = "512"]
+
 use std::{env, process};
 
 use anyhow::{bail, Context as _, Ok, Result};
@@ -29,7 +33,7 @@ mod utils;
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
-    println!("{:#?}", cli_roll::FLAGS);
+    println!("{:#?}", cli_roll::FLAGS_);
     return Ok(());
 
     // let cli = cli_nom::parse();

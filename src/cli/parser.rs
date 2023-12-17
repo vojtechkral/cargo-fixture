@@ -9,7 +9,7 @@ use os_str_bytes::RawOsStr;
 use tabular::{row, Table};
 use thiserror::Error;
 
-use super::{flags::FlagDef, Cli, FLAGS};
+use super::{flags::FlagDef, Cli};
 use crate::utils::OsStrExt as _;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -241,6 +241,8 @@ where
 #[derive(Debug)]
 pub struct Parser {
     // Flag definitions
+    flags: &'static [FlagDef],
+    cargo_flags: &'static [FlagDef],
     shorts: HashMap<&'static str, &'static FlagDef>,
     longs: HashMap<&'static str, &'static FlagDef>,
 
@@ -258,17 +260,21 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(
-        flags: impl IntoIterator<Item = &'static FlagDef> + Clone,
+        flags: &'static [FlagDef],
+        cargo_flags: &'static [FlagDef],
         args: impl IntoIterator<Item = OsString>,
     ) -> Result<Self> {
-        let flags2 = flags.clone();
+        let all_flags = flags.iter().chain(cargo_flags.iter());
+        let all_flags2 = all_flags.clone();
         Ok(Self {
-            shorts: flags
+            flags,
+            cargo_flags,
+            shorts: all_flags
                 .into_iter()
                 .filter(|f| f.short.is_some())
                 .map(|f| (f.short.unwrap(), f))
                 .collect(),
-            longs: flags2
+            longs: all_flags2
                 .into_iter()
                 .filter(|f| f.long.is_some())
                 .map(|f| (f.long.unwrap(), f))
@@ -411,7 +417,7 @@ impl Parser {
     }
 
     pub fn help(&mut self) -> Result<()> {
-        Err(Error::Help(Self::build_help()))
+        Err(Error::Help(self.build_help()))
     }
 
     pub fn version(&mut self) -> Result<()> {
@@ -426,7 +432,7 @@ impl Parser {
         format!("{name} [options...] [cargo test args...] [-- test binary args...]")
     }
 
-    fn build_help() -> String {
+    fn build_help(&self) -> String {
         let usage = Self::usage();
         let mut help = format!(
             r#"{usage}
@@ -440,26 +446,26 @@ Options:
         );
 
         let table = Table::new("  {:<}  {:<}");
-        let table = FLAGS
-            .iter()
-            .filter(|flag| !flag.help.is_empty())
-            .fold(table, |table, flag| {
-                table.with_row(row!(flag.help_def(), flag.help))
-            });
+        let table = self.flags.iter().fold(table, |table, flag| {
+            table.with_row(row!(flag.help_def(), flag.help))
+        });
         help.push_str(&format!("{table}"));
 
-        help.push_str("\n  Additionally, the following cargo options are recognized and passed to all cargo calls as appropriate:\n");
-        // let table = Table::new("  {:<} {:<}");
-        // let cargo_defs = FLAGS.iter().filter(|flag| flag.help.is_empty());
-        // let table = FLAGS
-        //     cargo_defs.take(10).zip(car)
-        //     .fold(table, |table, flag| {
-        //         table.with_row(row!(flag.help_def(), flag.help))
-        //     });
-        // help.push_str(&format!("{table}"));
+        help.push_str("\nAdditionally, the following cargo test options are recognized and passed to all cargo calls as appropriate:\n");
+        let third = self.cargo_flags.len() / 3;
+        let (p1, rest) = self.cargo_flags.split_at(third);
+        let (p2, p3) = rest.split_at(third);
+        let (mut p2, mut p3) = (
+            p2.iter().map(FlagDef::help_def),
+            p3.iter().map(FlagDef::help_def),
+        );
+        let table = Table::new("  {:<}    {:<}    {:<}");
+        let table = p1.iter().fold(table, |table, f1| {
+            let (f2, f3) = (p2.next().unwrap_or_default(), p3.next().unwrap_or_default());
+            table.with_row(row!(f1.help_def(), f2, f3))
+        });
+        help.push_str(&format!("{table}"));
 
         help
     }
 }
-
-// [off, info, debug, trace]

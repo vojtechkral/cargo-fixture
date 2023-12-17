@@ -13,7 +13,7 @@ mod logger;
 mod utils;
 
 // FIXME: harness args require cargo fixture -- -- --arg
-// TODO: rename data as tmpdata/tmp
+// TODO: rename data as tmpdata/tmp (??)
 // TODO: tests
 // TODO: docs
 // with-fixture fn args - env, data - nope
@@ -25,17 +25,12 @@ mod utils;
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
-    // println!("{:#?}", cli_roll::FLAGS);
-    let cli = cli::parse()?;
-    dbg!(cli);
-    return Ok(());
-
     if env::var_os(ENV_CARGO_FIXTURE).is_some() {
         bail!("Cannot run cargo fixture inside another cargo fixture"); // TODO: test
     }
     env::set_var(ENV_CARGO_FIXTURE, "1");
 
-    // let cli = cli::parse();
+    let cli = cli::parse()?;
     logger::init(cli.log_level);
     let config = Config::new(cli)?;
 

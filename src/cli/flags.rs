@@ -54,6 +54,7 @@ impl fmt::Debug for FlagDef {
 // TODO: Parametrize FLAGS ident?
 macro_rules! def_flags {
     (@flag
+        $output:ident
         [$($acc:expr,)*]
         $(-$short:ident)?
         $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
@@ -62,22 +63,22 @@ macro_rules! def_flags {
         $($help:literal)?
         , $($tt:tt)*
     ) => {
-        def_flags!(@flag [$($acc,)*
-            FlagDef {
+        def_flags!(@flag $output [$($acc,)*
+            $crate::cli::flags::FlagDef {
                 $( short: Some(stringify!($short)), )?
                 $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
                 parse_fn: def_flags!(@action $action $(($field))?),
                 $( meta: Some(def_flags!(@meta $($meta)+)), )?
                 $( help: $help, )?
 
-                ..FlagDef::EMPTY
+                ..$crate::cli::flags::FlagDef::EMPTY
             },]
             $($tt)*
         );
     };
-    (@flag [$($acc:expr,)*]) => {
+    (@flag $output:ident [$($acc:expr,)*]) => {
         // We're done
-        pub static FLAGS: &[FlagDef] = &[
+        pub static $output: &[$crate::cli::flags::FlagDef] = &[
             $($acc,)*
         ];
     };
@@ -98,6 +99,6 @@ macro_rules! def_flags {
     (@meta $meta:ident) => { stringify!($meta) };
 
     // Entry point
-    ( $($tt:tt)+ ) => { def_flags!(@flag [] $($tt)+); };
+    ( $output:ident : $($tt:tt)+ ) => { def_flags!(@flag $output [] $($tt)+); };
 }
 pub(crate) use def_flags;

@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::logger::LogLevel;
 
 mod flags;
-use flags::{def_flags, FlagDef};
+use flags::def_flags;
 mod parser;
 use parser::Parser;
 
@@ -14,21 +14,24 @@ pub struct Cli {
     pub log_level: LogLevel,
     pub fixture_args: Vec<OsString>,
     pub exec: Vec<OsString>,
-    /// FIXME: docs
     pub cargo_common_all: Vec<OsString>,
-    /// FIXME: docs
     pub cargo_common_test: Vec<OsString>,
     pub cargo_test_args: Vec<OsString>,
     pub harness_args: Vec<OsString>,
 }
 
 def_flags!(
-    // cargo fixture args
+    FLAGS:
+
     -A                    append_value_raw(fixture_args) "Pass an argument to the fixture test binary (can be used multiple times)",
     -x --exec [Args...]   take_remaining(exec) "Instead of running cargo test [args...], run the specified command and pass it all remaining arguments",
     -L                    parse_value(log_level) "Stderr logging level (choices: off, info, debug, trace, default: info)",
     -h --help             help "Print help",
     --version             version "Print version",
+);
+
+def_flags!(
+    CARGO_FLAGS:
 
     // Common cargo args
     -q --quiet                forward(cargo_common_all),
@@ -58,13 +61,15 @@ def_flags!(
 );
 
 pub fn parse() -> Result<Cli> {
-    Parser::new(FLAGS, env::args_os())?.parse().map_err(|err| {
-        let usage = Parser::usage();
-        if err.severity() == 0 {
-            println!("{err}");
-        } else {
-            eprintln!("{err}\n\nUsage: {usage}");
-        }
-        process::exit(err.severity());
-    })
+    Parser::new(FLAGS, CARGO_FLAGS, env::args_os())?
+        .parse()
+        .map_err(|err| {
+            let usage = Parser::usage();
+            if err.severity() == 0 {
+                println!("{err}");
+            } else {
+                eprintln!("{err}\n\nUsage: {usage}");
+            }
+            process::exit(err.severity());
+        })
 }

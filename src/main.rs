@@ -7,10 +7,6 @@ use log::info;
 use crate::{config::Config, fixture::FixtureProcess, utils::ExitStatusExt};
 
 mod cli;
-mod cli_;
-mod cli__;
-// mod cli_nom;
-mod cli_roll;
 mod config;
 mod fixture;
 mod logger;
@@ -30,20 +26,8 @@ const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
     // println!("{:#?}", cli_roll::FLAGS);
-    let cli = cli_roll::parse()?;
+    let cli = cli::parse()?;
     dbg!(cli);
-    return Ok(());
-
-    // let cli = cli_nom::parse();
-    // dbg!(cli);
-    // return Ok(());
-
-    // let cli__ = cli__::parse();
-    // dbg!(cli__);
-    // return Ok(());
-
-    let cli_ = cli_::cli_().run();
-    dbg!(cli_);
     return Ok(());
 
     if env::var_os(ENV_CARGO_FIXTURE).is_some() {
@@ -51,9 +35,7 @@ fn main() -> Result<()> {
     }
     env::set_var(ENV_CARGO_FIXTURE, "1");
 
-    let cli = cli::parse();
-    dbg!(cli);
-    return Ok(());
+    // let cli = cli::parse();
     logger::init(cli.log_level);
     let config = Config::new(cli)?;
 

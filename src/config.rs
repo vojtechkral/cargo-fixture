@@ -28,7 +28,7 @@ impl Config {
             })
             .into();
 
-        let metadata = CargoMetadata::read(&cargo_exe, &cli.args.cargo_flags_common)?;
+        let metadata = CargoMetadata::read(&cargo_exe, &cli.cargo_common_all)?;
 
         let target_dir = metadata.target_dir().clone();
         let pid = process::id();
@@ -44,7 +44,7 @@ impl Config {
     pub fn fixture_cmd(&self) -> Command {
         let mut cmd = Command::new(self.cargo_exe.clone());
         cmd.arg("test")
-            .args(&self.cli.args.cargo_flags_common)
+            .args(&self.cli.cargo_common_test)
             .args(["--test", "fixture", "--"])
             .args(&self.cli.fixture_args)
             .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
@@ -64,18 +64,13 @@ impl Config {
         } else {
             let mut cmd = Command::new(self.cargo_exe.clone());
             // NB. --features is additive
-            // TODO: configurable feature name?
+            // TODO: configurable feature name? (nah)
             cmd.args(["test", "--features", "fixture"]);
 
-            let args = self.cli.args.args.as_slice();
-            let mut split = args.splitn(2, |arg| arg == "--");
-            let to_cargo_test = split.next().unwrap_or(&[]);
-            let to_harness = split.next().unwrap_or(&[]);
-
-            cmd.args(to_cargo_test)
+            cmd.args(&self.cli.cargo_common_all)
                 .args(add_args_cargo_test)
                 .arg("--")
-                .args(to_harness)
+                .args(&self.cli.harness_args)
                 .args(add_args_harness);
             cmd
         };

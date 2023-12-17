@@ -1,140 +1,419 @@
-use std::{ffi::OsString, fmt};
+use std::{
+    collections::{HashMap, VecDeque},
+    ffi::OsString,
+    mem,
+    str::FromStr,
+};
 
-use super::Cli;
+use os_str_bytes::RawOsStr;
+use thiserror::Error;
 
-macro_rules! flags {
-    (@flag
-        [$($acc:expr,)*]
-        $(-$short:ident)?
-        $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
-        $([$($meta:tt)+])?
-        $action:ident $(($field:ident))?
-        $($help:literal)?
-        , $($tt:tt)*
-    ) => {
-        flags!(@flag [$($acc,)*
-            Flag {
-                $( short: Some(flags!(@char $short)), )?
-                $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
-                $( meta: Some(flags!(@meta $($meta)+)), )?
-                $( help: $help, )?
+use super::{flags::FlagDef, Cli};
+use crate::utils::OsStrExt as _;
 
-                ..Flag {
-                    short: None,
-                    long: None,
-                    parse_fn: flags!(@action $action $(($field))?),
-                    help: "",
-                    meta: None,
-                }
-            },]
-            $($tt)*
-        );
-    };
-    (@flag [$($acc:expr,)*]) => {
-        // We're done
-        pub static FLAGS: &[Flag] = &[
-            $($acc,)*
-        ];
-    };
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type ParseFn = dyn Fn(&mut Parser) -> Result<()> + Send + Sync + 'static;
 
-    // Actions
-    (@action parse_value($field:ident)) => { &|parser| { parser.parse_value(|cli| { &mut cli.$field }) } };
-    (@action append_value_raw($field:ident)) => { &|parser| { parser.append_value_raw(|cli| { &mut cli.$field }) } };
-    (@action forward($field:ident)) => { &|parser| { parser.forward(|cli| { &mut cli.$field }) } };
-    (@action forward_value($field:ident)) => { &|parser| { parser.forward_value(|cli| { &mut cli.$field }) } };
-    (@action take_remaining($field:ident)) => { &|parser| { parser.take_remaining(|cli| { &mut cli.$field }) } };
-    (@action take_tail($field:ident)) => {};
-    (@action help) => { &|parser| { parser.help() } };
-    (@action version) => { &|parser| { parser.version() } };
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Flag not convertible to unicode: {0}")]
+    NonUnicodeFlag(String),
 
-    // Parsing of meta args
-    (@meta $meta:ident ...) => { concat!(stringify!($meta), "...") };
-    (@meta $meta:ident=$meta2:ident) => { concat!(stringify!($meta), "=", stringify!($meta2)) };
-    (@meta $meta:ident) => { stringify!($meta) };
+    #[error("Unrecognized flag: {0}")]
+    UnrecognizedFlag(String),
 
-    // Util: maps single char ident into char (just the ones I need lol)
-    (@char r) => { 'r' };
-    (@char j) => { 'j' };
-    (@char p) => { 'p' };
-    (@char A) => { 'A' };
-    (@char F) => { 'F' };
-    (@char h) => { 'h' };
-    (@char L) => { 'L' };
-    (@char q) => { 'q' };
-    (@char v) => { 'v' };
-    (@char x) => { 'x' };
-    (@char Z) => { 'Z' };
+    #[error("Flag {0} doesn't expect a value")]
+    UnexpectedValue(String),
 
-    // Entry point
-    ( $($tt:tt)+ ) => { flags!(@flag [] $($tt)+); };
-}
-pub(crate) use flags;
+    #[error("Flag {0} requires a value")]
+    MissingValue(String),
 
-pub struct Flag {
-    pub short: Option<char>,
-    pub long: Option<&'static str>,
-    pub parse_fn: &'static (dyn Fn(Parser) -> Parser + Send + Sync + 'static), // TODO: Result
-    pub help: &'static str,
-    pub meta: Option<&'static str>,
+    #[error("Error parsing value for flag {flag}")]
+    ParseError {
+        flag: String,
+        error: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error("{0}")]
+    Help(String),
+    #[error("{0}")]
+    Version(String),
 }
 
-impl fmt::Debug for Flag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self {
-            short,
-            long,
-            parse_fn,
-            help,
-            meta,
-        } = self;
-        f.debug_struct("Flag")
-            .field("short", &short)
-            .field("long", &long)
-            .field("parse_fn", &(parse_fn as *const _))
-            .field("help", &help)
-            .field("meta", &meta)
-            .finish()
+impl Error {
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            Error::Help(_) | Error::Version(_) => 0,
+            _ => 1,
+        }
+    }
+}
+
+trait OptionExt<T> {
+    fn or_non_unicode_flag(self, flag: impl Into<String>) -> Result<T>;
+    fn or_unrecognized_flag(self, flag: impl Into<String>) -> Result<T>;
+}
+
+impl<T> OptionExt<T> for Option<T> {
+    fn or_non_unicode_flag(self, flag: impl Into<String>) -> Result<T> {
+        self.ok_or_else(|| Error::NonUnicodeFlag(flag.into()))
+    }
+    fn or_unrecognized_flag(self, flag: impl Into<String>) -> Result<T> {
+        self.ok_or_else(|| Error::UnrecognizedFlag(flag.into()))
+    }
+}
+
+trait ResultExt<T, E> {
+    fn parser_error(self, flag: impl Into<String>) -> Result<T>;
+}
+
+impl<T, E> ResultExt<T, E> for Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn parser_error(self, flag: impl Into<String>) -> Result<T> {
+        self.map_err(|err| Error::ParseError {
+            flag: flag.into(),
+            error: Box::new(err),
+        })
+    }
+}
+
+#[derive(Debug)]
+struct RawFlag {
+    short: bool,
+    name: String,
+    eq_value: Option<OsString>,
+}
+
+impl RawFlag {
+    fn long(name: impl Into<String>, eq_value: Option<OsString>) -> Self {
+        Self {
+            short: false,
+            name: name.into(),
+            eq_value,
+        }
+    }
+    fn short(name: impl Into<String>, eq_value: Option<OsString>) -> Self {
+        Self {
+            short: true,
+            name: name.into(),
+            eq_value,
+        }
+    }
+    fn empty() -> Self {
+        Self {
+            short: false,
+            name: String::new(),
+            eq_value: None,
+        }
+    }
+}
+
+impl From<RawFlag> for OsString {
+    fn from(this: RawFlag) -> Self {
+        let dashes = if this.short { "-" } else { "--" };
+        let name = this.name;
+        if let Some(eq_value) = this.eq_value {
+            let mut os = OsString::from(format!("{dashes}{name}="));
+            os.push(eq_value);
+            os
+        } else {
+            OsString::from(format!("{dashes}{name}"))
+        }
+    }
+}
+
+#[derive(Debug)]
+enum NormalizedArg {
+    Prog(OsString),
+    CargoExt(OsString),
+    Flag(RawFlag),
+    Positional(OsString),
+    Delimiter, // ie. --
+}
+
+impl From<NormalizedArg> for OsString {
+    fn from(this: NormalizedArg) -> Self {
+        match this {
+            NormalizedArg::Prog(p) => p,
+            NormalizedArg::CargoExt(e) => e,
+            // NormalizedArg::ShortFlag { flag, eq_value: Some(v) } => {
+            //     let mut os = OsString::from(format!("{flag}="));
+            //     os.push(v);
+            //     os
+            // },
+            // NormalizedArg::ShortFlag { flag, .. } => {
+            //     OsString::from(format!("{flag}"))
+            // },
+            // NormalizedArg::LongFlag { flag, eq_value: Some(v) } => {
+            //     let mut os = OsString::from(format!("{flag}="));
+            //     os.push(v);
+            //     os
+            // },
+            // NormalizedArg::LongFlag { flag, .. } => OsString::from(flag),
+            NormalizedArg::Flag(f) => f.into(),
+            NormalizedArg::Positional(arg) => arg,
+            NormalizedArg::Delimiter => OsString::from("--"),
+        }
+    }
+}
+
+trait Normalize {
+    fn normalize(self) -> Result<VecDeque<NormalizedArg>>;
+}
+
+impl<I> Normalize for I
+where
+    I: IntoIterator<Item = OsString>,
+{
+    fn normalize(self) -> Result<VecDeque<NormalizedArg>> {
+        let mut deq = VecDeque::new();
+        let mut iter = self.into_iter();
+        let Some(prog) = iter.next() else {
+            return Ok(deq);
+        };
+        let cargo_ext = prog
+            .to_string_lossy()
+            .rsplit_once('-')
+            .map(|(_, ext)| ext.to_string());
+        deq.push_back(NormalizedArg::Prog(prog));
+
+        let mut iter = iter.peekable();
+        if let Some(cargo_ext) = cargo_ext {
+            if let Some(cargo_ext) = iter.next_if(|arg| arg.as_os_str() == cargo_ext.as_str()) {
+                deq.push_back(NormalizedArg::CargoExt(cargo_ext));
+            }
+        }
+
+        iter.try_fold(deq, |mut deq, arg| {
+            if !arg.as_os_str().starts_with('-') || arg == "-" {
+                deq.push_back(NormalizedArg::Positional(arg));
+                return Ok(deq);
+            }
+
+            if arg == "--" {
+                deq.push_back(NormalizedArg::Delimiter);
+                return Ok(deq);
+            }
+
+            // Positionals, "--", and "-" taken care of...
+
+            let flag = RawOsStr::new(&arg);
+            let flag = &*flag;
+            // Try to extract a value passed using the --flag=value syntax:
+            let (flag, eq_value) = flag
+                .split_once("=")
+                .map(|(flag, eq_value)| (flag, Some(eq_value.to_os_str().into_owned())))
+                .unwrap_or((flag, None));
+
+            // The flag part needs to be unicode
+            let flag = flag.to_str().or_non_unicode_flag(flag.to_str_lossy())?;
+            if flag.starts_with("--") {
+                // Long flag
+                // This also takes stuff like ---foo or --- but that's ok
+                deq.push_back(NormalizedArg::Flag(RawFlag::long(
+                    flag.strip_prefix("--").unwrap(),
+                    eq_value,
+                )));
+                return Ok(deq);
+            }
+
+            // Cluster of short flags
+            let flags = flag.strip_prefix('-').unwrap();
+            let (flags, last) = flags.split_at(flags.len() - 1);
+
+            for f in flags.chars() {
+                deq.push_back(NormalizedArg::Flag(RawFlag::short(f, None)));
+            }
+
+            // Last flag takes the value, if any
+            deq.push_back(NormalizedArg::Flag(RawFlag::short(
+                last.chars().next().unwrap(),
+                eq_value,
+            )));
+            Ok(deq)
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct Parser {
-    dummy: u32,
+    // Flag definitions
+    shorts: HashMap<&'static str, &'static FlagDef>,
+    longs: HashMap<&'static str, &'static FlagDef>,
+
+    // Input
+    args: VecDeque<NormalizedArg>,
+
+    // Parsing state
+    current_flag: RawFlag,
+    current_flag_def: &'static FlagDef,
+    delimiter_found: bool,
+
+    // Result
+    cli: Cli,
 }
 
 impl Parser {
-    pub fn parse_value<T>(self, field: impl Fn(&mut Cli) -> &mut T) -> Self {
-        todo!();
-        self
+    pub fn new(
+        flags: impl IntoIterator<Item = &'static FlagDef> + Clone,
+        args: impl IntoIterator<Item = OsString>,
+    ) -> Result<Self> {
+        let flags2 = flags.clone();
+        Ok(Self {
+            shorts: flags
+                .into_iter()
+                .filter(|f| f.short.is_some())
+                .map(|f| (f.short.unwrap(), f))
+                .collect(),
+            longs: flags2
+                .into_iter()
+                .filter(|f| f.long.is_some())
+                .map(|f| (f.long.unwrap(), f))
+                .collect(),
+            args: args.normalize()?,
+            current_flag: RawFlag::empty(), // dummy value
+            current_flag_def: &FlagDef::EMPTY,
+            delimiter_found: false,
+            cli: Cli::default(),
+        })
     }
 
-    pub fn append_value_raw(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
+    pub fn parse(mut self) -> Result<Cli> {
+        while let Some(arg) = self.args.pop_front() {
+            let flag = match arg {
+                NormalizedArg::Prog(_) => continue,
+                NormalizedArg::CargoExt(_) => continue,
+                NormalizedArg::Flag(flag) if self.delimiter_found => {
+                    self.cli.harness_args.push(flag.into());
+                    continue;
+                },
+                NormalizedArg::Flag(flag) => flag,
+                NormalizedArg::Positional(arg) => {
+                    if !self.delimiter_found {
+                        self.cli.cargo_test_args.push(arg);
+                    } else {
+                        self.cli.harness_args.push(arg);
+                    }
+                    continue;
+                }
+                NormalizedArg::Delimiter => {
+                    self.delimiter_found = true;
+                    continue;
+                }
+            };
+
+            let def_map = if flag.short {
+                &self.shorts
+            } else {
+                &self.longs
+            };
+            let flag_def = def_map
+                .get(flag.name.as_str())
+                .or_unrecognized_flag(&flag.name)?;
+
+            self.current_flag = flag;
+            self.current_flag_def = flag_def;
+            (flag_def.parse_fn)(&mut self)?;
+
+            if self.current_flag.eq_value.is_some() {
+                return Err(Error::UnexpectedValue(self.take_current_flag().name));
+            }
+        }
+
+        Ok(self.cli)
     }
 
-    pub fn take_remaining(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
+    fn take_current_flag(&mut self) -> RawFlag {
+        mem::replace(&mut self.current_flag, RawFlag::empty())
     }
 
-    pub fn forward(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
+    fn missing_value_error(&mut self) -> Error {
+        Error::MissingValue(self.take_current_flag().name)
     }
 
-    pub fn forward_value(self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Self {
-        todo!();
-        self
+    fn get_value(&mut self) -> Result<OsString> {
+        let value = self.get_value_raw()?;
+        if value.as_os_str().starts_with('-') {
+            Err(self.missing_value_error())
+        } else {
+            Ok(value)
+        }
     }
 
-    pub fn help(self) -> Self {
-        todo!();
-        self
+    fn get_value_raw(&mut self) -> Result<OsString> {
+        if let Some(value) = self.current_flag.eq_value.take() {
+            return Ok(value);
+        }
+
+        self.args
+            .pop_front()
+            .and_then(|arg| match arg {
+                NormalizedArg::Positional(arg) => Some(arg),
+                _ => None,
+            })
+            .ok_or_else(|| self.missing_value_error())
     }
 
-    pub fn version(self) -> Self {
-        todo!();
-        self
+    // flag parse fns
+
+    pub fn parse_value<T>(&mut self, field: impl Fn(&mut Cli) -> &mut T) -> Result<()>
+    where
+        T: FromStr,
+        <T as FromStr>::Err: std::error::Error + Send + Sync + 'static,
+    {
+        let value = self.get_value()?;
+        let value = value
+            .to_str()
+            .or_unrecognized_flag(self.take_current_flag().name)?;
+        let value = value
+            .parse::<T>()
+            .parser_error(self.take_current_flag().name)?;
+        *field(&mut self.cli) = value;
+        Ok(())
+    }
+
+    pub fn append_value_raw(
+        &mut self,
+        field: impl Fn(&mut Cli) -> &mut Vec<OsString>,
+    ) -> Result<()> {
+        let value = self.get_value_raw()?;
+        let field = field(&mut self.cli);
+        field.push(value);
+        Ok(())
+    }
+
+    pub fn take_remaining(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Result<()> {
+        let field = field(&mut self.cli);
+        field.extend(self.args.drain(..).map(OsString::from));
+        Ok(())
+    }
+
+    pub fn forward(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Result<()> {
+        let flag = self.take_current_flag();
+        field(&mut self.cli).push(flag.into());
+        Ok(())
+    }
+
+    pub fn forward_value(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Result<()> {
+        let flag = self.take_current_flag();
+        let has_eq_value = flag.eq_value.is_some();
+        field(&mut self.cli).push(flag.into());
+
+        if !has_eq_value {
+            let value = self.get_value_raw()?;
+            field(&mut self.cli).push(value.into());
+        }
+
+        Ok(())
+    }
+
+    pub fn help(&mut self) -> Result<()> {
+        Err(Error::Help("FIXME:".to_string()))
+    }
+
+    pub fn version(&mut self) -> Result<()> {
+        Err(Error::Version("FIXME:".to_string()))
     }
 }

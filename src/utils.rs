@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsStr,
     fmt, fs,
     path::Path,
     process::{Command, ExitStatus},
@@ -71,5 +72,15 @@ impl ExitStatusExt for ExitStatus {
     fn fixture_early_exit<T>(&self) -> Result<T> {
         self.as_result().context("Fixture failed")?;
         bail!("Fixture didn't connect to cargo fixture")
+    }
+}
+
+pub trait OsStrExt {
+    fn starts_with(&self, c: char) -> bool;
+}
+
+impl<'a> OsStrExt for &'a OsStr {
+    fn starts_with(&self, c: char) -> bool {
+        self.to_string_lossy().chars().next() == Some(c)
     }
 }

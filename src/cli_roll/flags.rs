@@ -1,0 +1,93 @@
+use std::fmt;
+
+use super::parser::ParseFn;
+
+pub struct FlagDef {
+    pub short: Option<&'static str>,
+    pub long: Option<&'static str>,
+    pub parse_fn: &'static ParseFn,
+    pub help: &'static str,
+    pub meta: Option<&'static str>,
+}
+
+impl FlagDef {
+    pub const EMPTY: Self = Self {
+        short: None,
+        long: None,
+        parse_fn: &|_p| Ok(()),
+        help: "",
+        meta: None,
+    };
+}
+
+impl fmt::Debug for FlagDef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            short,
+            long,
+            parse_fn,
+            help,
+            meta,
+        } = self;
+        f.debug_struct("Flag")
+            .field("short", &short)
+            .field("long", &long)
+            .field("parse_fn", &(parse_fn as *const _))
+            .field("help", &help)
+            .field("meta", &meta)
+            .finish()
+    }
+}
+
+// FIXME: refer to flag by $crate
+// TODO: Parametrize FLAGS ident?
+macro_rules! def_flags {
+    (@flag
+        [$($acc:expr,)*]
+        $(-$short:ident)?
+        $(--$long:ident $(-$long2:ident $(-$long3:ident)?)?)?
+        $([$($meta:tt)+])?
+        $action:ident $(($field:ident))?
+        $($help:literal)?
+        , $($tt:tt)*
+    ) => {
+        def_flags!(@flag [$($acc,)*
+            FlagDef {
+                $( short: Some(stringify!($short)), )?
+                $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?
+                parse_fn: def_flags!(@action $action $(($field))?),
+                $( meta: Some(def_flags!(@meta $($meta)+)), )?
+                $( help: $help, )?
+
+                ..FlagDef::EMPTY
+            },]
+            $($tt)*
+        );
+    };
+    (@flag [$($acc:expr,)*]) => {
+        // We're done
+        pub static FLAGS: &[FlagDef] = &[
+            $($acc,)*
+        ];
+    };
+
+    // Actions
+    (@action parse_value($field:ident)) => { &|parser| { parser.parse_value(|cli| { &mut cli.$field }) } };
+    (@action append_value_raw($field:ident)) => { &|parser| { parser.append_value_raw(|cli| { &mut cli.$field }) } };
+    (@action forward($field:ident)) => { &|parser| { parser.forward(|cli| { &mut cli.$field }) } };
+    (@action forward_value($field:ident)) => { &|parser| { parser.forward_value(|cli| { &mut cli.$field }) } };
+    (@action take_remaining($field:ident)) => { &|parser| { parser.take_remaining(|cli| { &mut cli.$field }) } };
+    (@action take_tail($field:ident)) => {};
+    (@action help) => { &|parser| { parser.help() } };
+    (@action version) => { &|parser| { parser.version() } };
+
+    // Parsing of meta args
+    (@meta $meta:ident ...) => { concat!(stringify!($meta), "...") };
+    (@meta $meta:ident=$meta2:ident) => { concat!(stringify!($meta), "=", stringify!($meta2)) };
+    (@meta $meta:ident) => { stringify!($meta) };
+
+    // Entry point
+    ( $($tt:tt)+ ) => { def_flags!(@flag [] $($tt)+); };
+}
+use anyhow::Result;
+pub(crate) use def_flags;

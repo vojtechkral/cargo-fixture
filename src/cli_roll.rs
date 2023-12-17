@@ -1,11 +1,13 @@
-use std::ffi::OsString;
+use std::{env, ffi::OsString, process};
 
 use anyhow::Result;
 
 use crate::logger::LogLevel;
 
+mod flags;
+use flags::{def_flags, FlagDef};
 mod parser;
-use parser::{flags, Flag, Parser};
+use parser::Parser;
 
 #[derive(Default, Debug)]
 pub struct Cli {
@@ -20,11 +22,11 @@ pub struct Cli {
     pub harness_args: Vec<OsString>,
 }
 
-flags!(
+def_flags!(
     // cargo fixture args
     -L                    parse_value(log_level) "TODO:",
     -A                    append_value_raw(fixture_args) "TODO:",
-    -x --exec [Args...]   take_remaining(exec) "Instead of running cargo test [args...] run the specified command and pass it all remaining arguments",
+    -x --exec [Args...]   take_remaining(exec) "Instead of running cargo test [args...], run the specified command and pass it all remaining arguments",
     -h --help             help "TODO:",
     --version             version "TODO:",
 
@@ -54,3 +56,10 @@ flags!(
     --unit-graph             forward(cargo_common_test),
     --timings [FORMATS]      forward_value(cargo_common_test),
 );
+
+pub fn parse() -> Result<Cli> {
+    Parser::new(FLAGS, env::args_os())?.parse().map_err(|err| {
+        eprintln!("{err}");
+        process::exit(err.exit_code());
+    })
+}

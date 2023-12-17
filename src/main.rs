@@ -30,7 +30,7 @@ const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
     // println!("{:#?}", cli_roll::FLAGS);
-    let cli = cli_roll::parse();
+    let cli = cli_roll::parse()?;
     dbg!(cli);
     return Ok(());
 

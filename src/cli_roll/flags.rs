@@ -89,5 +89,4 @@ macro_rules! def_flags {
     // Entry point
     ( $($tt:tt)+ ) => { def_flags!(@flag [] $($tt)+); };
 }
-use anyhow::Result;
 pub(crate) use def_flags;

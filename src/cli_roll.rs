@@ -59,7 +59,7 @@ def_flags!(
 
 pub fn parse() -> Result<Cli> {
     Parser::new(FLAGS, env::args_os())?.parse().map_err(|err| {
-        eprintln!("{err}");
+        eprintln!("{err}"); // TODO: more use-friendliness (suggest --help, usage, ...)
         process::exit(err.exit_code());
     })
 }

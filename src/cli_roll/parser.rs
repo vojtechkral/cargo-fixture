@@ -288,7 +288,7 @@ impl Parser {
                 NormalizedArg::Flag(flag) if self.delimiter_found => {
                     self.cli.harness_args.push(flag.into());
                     continue;
-                },
+                }
                 NormalizedArg::Flag(flag) => flag,
                 NormalizedArg::Positional(arg) => {
                     if !self.delimiter_found {

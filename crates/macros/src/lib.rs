@@ -1,11 +1,8 @@
 extern crate proc_macro;
 
-use std::mem;
-
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, parse_quote, Error, FnArg, ItemFn, Signature, Token};
+use syn::{parse_macro_input, Error, ItemFn, Token};
 use types::{TestFn, WrapFn};
 
 mod types;

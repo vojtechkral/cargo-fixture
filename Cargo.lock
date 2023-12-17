@@ -442,13 +442,13 @@ dependencies = [
  "clap",
  "futures-util",
  "log",
- "nom",
  "os_str_bytes",
  "serde",
  "serde_json",
  "smol",
  "stderrlog",
  "strum",
+ "tabular",
  "thiserror",
 ]
 
@@ -2235,6 +2235,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tabular"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9a2882c514780a1973df90de9d68adcd8871bacc9a6331c3f28e6d2ff91a3d1"
+dependencies = [
+ "unicode-width",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2461,6 +2470,12 @@ name = "unicode-segmentation"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1dd624098567895118886609431a7c3b8f516e41d30e0643f03d94592a147e36"
+
+[[package]]
+name = "unicode-width"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e51733f11c9c4f72aa0c160008246859e340b00807569a0da0e7a1079b27ba85"
 
 [[package]]
 name = "unicode_categories"

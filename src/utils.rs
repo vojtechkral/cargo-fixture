@@ -75,6 +75,16 @@ impl ExitStatusExt for ExitStatus {
     }
 }
 
+pub trait StringExt {
+    fn push_strs(&mut self, strs: &[&str]);
+}
+
+impl StringExt for String {
+    fn push_strs(&mut self, strs: &[&str]) {
+        strs.iter().for_each(|s| self.push_str(s));
+    }
+}
+
 pub trait OsStrExt {
     fn starts_with(&self, c: char) -> bool;
 }

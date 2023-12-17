@@ -24,11 +24,11 @@ pub struct Cli {
 
 def_flags!(
     // cargo fixture args
-    -L                    parse_value(log_level) "TODO:",
-    -A                    append_value_raw(fixture_args) "TODO:",
+    -A                    append_value_raw(fixture_args) "Pass an argument to the fixture test binary (can be used multiple times)",
     -x --exec [Args...]   take_remaining(exec) "Instead of running cargo test [args...], run the specified command and pass it all remaining arguments",
-    -h --help             help "TODO:",
-    --version             version "TODO:",
+    -L                    parse_value(log_level) "Stderr logging level (choices: off, info, debug, trace, default: info)",
+    -h --help             help "Print help",
+    --version             version "Print version",
 
     // Common cargo args
     -q --quiet                forward(cargo_common_all),
@@ -59,7 +59,12 @@ def_flags!(
 
 pub fn parse() -> Result<Cli> {
     Parser::new(FLAGS, env::args_os())?.parse().map_err(|err| {
-        eprintln!("{err}"); // TODO: more use-friendliness (suggest --help, usage, ...)
-        process::exit(err.exit_code());
+        let usage = Parser::usage();
+        if err.severity() == 0 {
+            println!("{err}");
+        } else {
+            eprintln!("{err}\n\nUsage: {usage}");
+        }
+        process::exit(err.severity());
     })
 }

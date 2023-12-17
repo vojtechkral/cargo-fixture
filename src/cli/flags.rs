@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::utils::StringExt;
+
 use super::parser::ParseFn;
 
 pub struct FlagDef {
@@ -18,6 +20,15 @@ impl FlagDef {
         help: "",
         meta: None,
     };
+
+    pub fn help_def(&self) -> String {
+        let mut res = String::new();
+        self.short.map(|s| res.push_strs(&["-", s]));
+        self.short.and(self.long).map(|_| res.push_str(", "));
+        self.long.map(|l| res.push_strs(&["--", l]));
+        self.meta.map(|m| res.push_strs(&[" <", m, ">"]));
+        res
+    }
 }
 
 impl fmt::Debug for FlagDef {

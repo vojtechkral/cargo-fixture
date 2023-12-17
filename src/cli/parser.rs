@@ -6,9 +6,10 @@ use std::{
 };
 
 use os_str_bytes::RawOsStr;
+use tabular::{row, Table};
 use thiserror::Error;
 
-use super::{flags::FlagDef, Cli};
+use super::{flags::FlagDef, Cli, FLAGS};
 use crate::utils::OsStrExt as _;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -41,7 +42,7 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn exit_code(&self) -> i32 {
+    pub fn severity(&self) -> i32 {
         match self {
             Error::Help(_) | Error::Version(_) => 0,
             _ => 1,
@@ -410,10 +411,55 @@ impl Parser {
     }
 
     pub fn help(&mut self) -> Result<()> {
-        Err(Error::Help("FIXME:".to_string()))
+        Err(Error::Help(Self::build_help()))
     }
 
     pub fn version(&mut self) -> Result<()> {
-        Err(Error::Version("FIXME:".to_string()))
+        let ver = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        Err(Error::Version(ver))
+    }
+
+    // help utils
+
+    pub fn usage() -> String {
+        let name = env!("CARGO_PKG_NAME").replace('-', " ");
+        format!("{name} [options...] [cargo test args...] [-- test binary args...]")
+    }
+
+    fn build_help() -> String {
+        let usage = Self::usage();
+        let mut help = format!(
+            r#"{usage}
+
+Arguments:
+  [cargo test args...]   Arguments passed to cargo test.
+  [test binary args...]  Arguments passed to the test binary via cargo test -- args...
+
+Options:
+"#
+        );
+
+        let table = Table::new("  {:<}  {:<}");
+        let table = FLAGS
+            .iter()
+            .filter(|flag| !flag.help.is_empty())
+            .fold(table, |table, flag| {
+                table.with_row(row!(flag.help_def(), flag.help))
+            });
+        help.push_str(&format!("{table}"));
+
+        help.push_str("\n  Additionally, the following cargo options are recognized and passed to all cargo calls as appropriate:\n");
+        // let table = Table::new("  {:<} {:<}");
+        // let cargo_defs = FLAGS.iter().filter(|flag| flag.help.is_empty());
+        // let table = FLAGS
+        //     cargo_defs.take(10).zip(car)
+        //     .fold(table, |table, flag| {
+        //         table.with_row(row!(flag.help_def(), flag.help))
+        //     });
+        // help.push_str(&format!("{table}"));
+
+        help
     }
 }
+
+// [off, info, debug, trace]

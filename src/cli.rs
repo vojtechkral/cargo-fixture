@@ -61,14 +61,14 @@ def_flags!(
 );
 
 pub fn parse() -> Result<Cli> {
-    Parser::new(FLAGS, CARGO_FLAGS, env::args_os())?
+    Parser::new(FLAGS, CARGO_FLAGS, env::args_os())
         .parse()
         .map_err(|err| {
             let usage = Parser::usage();
             if err.severity() == 0 {
                 println!("{err}");
             } else {
-                eprintln!("{err}\n\nUsage: {usage}");
+                eprintln!("Error: {err}\nUsage: {usage}\nFor more information, try --help");
             }
             process::exit(err.severity());
         })

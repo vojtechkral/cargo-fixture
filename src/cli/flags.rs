@@ -50,8 +50,6 @@ impl fmt::Debug for FlagDef {
     }
 }
 
-// FIXME: refer to flag by $crate
-// TODO: Parametrize FLAGS ident?
 macro_rules! def_flags {
     (@flag
         $output:ident

@@ -1,4 +1,5 @@
 use std::{
+    ascii,
     collections::{HashMap, VecDeque},
     ffi::OsString,
     mem,
@@ -48,17 +49,26 @@ impl Error {
             _ => 1,
         }
     }
+
+    fn non_unicode_flag(os: OsString) -> Self {
+        let os = RawOsStr::new(os.as_os_str());
+        let bytes = os.to_raw_bytes();
+        let escaped = bytes
+            .iter()
+            .map(|&b| ascii::escape_default(b))
+            .flatten()
+            .map(|b| char::from_u32(b as _).unwrap())
+            .collect::<String>();
+
+        Self::NonUnicodeFlag(escaped)
+    }
 }
 
 trait OptionExt<T> {
-    fn or_non_unicode_flag(self, flag: impl Into<String>) -> Result<T>;
     fn or_unrecognized_flag(self, flag: impl Into<String>) -> Result<T>;
 }
 
 impl<T> OptionExt<T> for Option<T> {
-    fn or_non_unicode_flag(self, flag: impl Into<String>) -> Result<T> {
-        self.ok_or_else(|| Error::NonUnicodeFlag(flag.into()))
-    }
     fn or_unrecognized_flag(self, flag: impl Into<String>) -> Result<T> {
         self.ok_or_else(|| Error::UnrecognizedFlag(flag.into()))
     }
@@ -130,6 +140,7 @@ enum NormalizedArg {
     Prog(OsString),
     CargoExt(OsString),
     Flag(RawFlag),
+    BadFlag(OsString),
     Positional(OsString),
     Delimiter, // ie. --
 }
@@ -139,21 +150,8 @@ impl From<NormalizedArg> for OsString {
         match this {
             NormalizedArg::Prog(p) => p,
             NormalizedArg::CargoExt(e) => e,
-            // NormalizedArg::ShortFlag { flag, eq_value: Some(v) } => {
-            //     let mut os = OsString::from(format!("{flag}="));
-            //     os.push(v);
-            //     os
-            // },
-            // NormalizedArg::ShortFlag { flag, .. } => {
-            //     OsString::from(format!("{flag}"))
-            // },
-            // NormalizedArg::LongFlag { flag, eq_value: Some(v) } => {
-            //     let mut os = OsString::from(format!("{flag}="));
-            //     os.push(v);
-            //     os
-            // },
-            // NormalizedArg::LongFlag { flag, .. } => OsString::from(flag),
             NormalizedArg::Flag(f) => f.into(),
+            NormalizedArg::BadFlag(f) => f,
             NormalizedArg::Positional(arg) => arg,
             NormalizedArg::Delimiter => OsString::from("--"),
         }
@@ -161,18 +159,18 @@ impl From<NormalizedArg> for OsString {
 }
 
 trait Normalize {
-    fn normalize(self) -> Result<VecDeque<NormalizedArg>>;
+    fn normalize(self) -> VecDeque<NormalizedArg>;
 }
 
 impl<I> Normalize for I
 where
     I: IntoIterator<Item = OsString>,
 {
-    fn normalize(self) -> Result<VecDeque<NormalizedArg>> {
+    fn normalize(self) -> VecDeque<NormalizedArg> {
         let mut deq = VecDeque::new();
         let mut iter = self.into_iter();
         let Some(prog) = iter.next() else {
-            return Ok(deq);
+            return deq;
         };
         let cargo_ext = prog
             .to_string_lossy()
@@ -187,15 +185,15 @@ where
             }
         }
 
-        iter.try_fold(deq, |mut deq, arg| {
+        iter.fold(deq, |mut deq, arg| {
             if !arg.as_os_str().starts_with('-') || arg == "-" {
                 deq.push_back(NormalizedArg::Positional(arg));
-                return Ok(deq);
+                return deq;
             }
 
             if arg == "--" {
                 deq.push_back(NormalizedArg::Delimiter);
-                return Ok(deq);
+                return deq;
             }
 
             // Positionals, "--", and "-" taken care of...
@@ -209,7 +207,11 @@ where
                 .unwrap_or((flag, None));
 
             // The flag part needs to be unicode
-            let flag = flag.to_str().or_non_unicode_flag(flag.to_str_lossy())?;
+            let Some(flag) = flag.to_str() else {
+                deq.push_back(NormalizedArg::BadFlag(arg));
+                return deq;
+            };
+
             if flag.starts_with("--") {
                 // Long flag
                 // This also takes stuff like ---foo or --- but that's ok
@@ -217,7 +219,7 @@ where
                     flag.strip_prefix("--").unwrap(),
                     eq_value,
                 )));
-                return Ok(deq);
+                return deq;
             }
 
             // Cluster of short flags
@@ -233,7 +235,7 @@ where
                 last.chars().next().unwrap(),
                 eq_value,
             )));
-            Ok(deq)
+            deq
         })
     }
 }
@@ -263,10 +265,10 @@ impl Parser {
         flags: &'static [FlagDef],
         cargo_flags: &'static [FlagDef],
         args: impl IntoIterator<Item = OsString>,
-    ) -> Result<Self> {
+    ) -> Self {
         let all_flags = flags.iter().chain(cargo_flags.iter());
         let all_flags2 = all_flags.clone();
-        Ok(Self {
+        Self {
             flags,
             cargo_flags,
             shorts: all_flags
@@ -279,12 +281,12 @@ impl Parser {
                 .filter(|f| f.long.is_some())
                 .map(|f| (f.long.unwrap(), f))
                 .collect(),
-            args: args.normalize()?,
+            args: args.normalize(),
             current_flag: RawFlag::empty(), // dummy value
             current_flag_def: &FlagDef::EMPTY,
             delimiter_found: false,
             cli: Cli::default(),
-        })
+        }
     }
 
     pub fn parse(mut self) -> Result<Cli> {
@@ -297,6 +299,7 @@ impl Parser {
                     continue;
                 }
                 NormalizedArg::Flag(flag) => flag,
+                NormalizedArg::BadFlag(os) => return Err(Error::non_unicode_flag(os)),
                 NormalizedArg::Positional(arg) => {
                     if !self.delimiter_found {
                         self.cli.cargo_test_args.push(arg);

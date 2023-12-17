@@ -1,6 +1,6 @@
 use std::{env, process};
 
-use anyhow::{bail, Context as _, Ok, Result};
+use anyhow::{bail, Context as _, Result};
 use async_ctrlc::CtrlC;
 use log::info;
 

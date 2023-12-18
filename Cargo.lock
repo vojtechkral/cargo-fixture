@@ -443,6 +443,7 @@ dependencies = [
  "futures-util",
  "log",
  "os_str_bytes",
+ "pin-project-lite",
  "serde",
  "serde_json",
  "smol",

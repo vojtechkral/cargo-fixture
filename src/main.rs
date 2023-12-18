@@ -1,19 +1,22 @@
-use std::{env, process};
+use std::env;
 
-use anyhow::{bail, Context as _, Result};
+use anyhow::{bail, Context as _, Ok, Result};
 use async_ctrlc::CtrlC;
+use fixture_process::FixtureProcess;
 use log::info;
+use server::Server;
 
-use crate::{config::Config, fixture::FixtureProcess, utils::ExitStatusExt};
+use crate::{config::Config, utils::ExitStatusExt};
 
 mod cli;
 mod config;
 mod fixture;
+mod fixture_process;
 mod logger;
+mod server;
 mod utils;
 
-// FIXME: harness args require cargo fixture -- -- --arg
-// TODO: rename data as tmpdata/tmp (??)
+// TODO: rename data as tmpdata/tmp (??) -> nah, move to in-memory stuff with the new client
 // TODO: tests
 // TODO: docs
 // with-fixture fn args - env, data - nope
@@ -36,18 +39,29 @@ fn main() -> Result<()> {
 
     info!("setting up...");
 
-    let status = smol::block_on(async move {
-        let ctrlc = CtrlC::new().context("Failed to create SIGINT handler")?;
-        let mut fixture = FixtureProcess::spawn(config, ctrlc).await?;
-        let status = fixture.serve().await?;
-        fixture
-            .join()
-            .await?
-            .as_result()
-            .context("fixture teardown failure")?;
+    let status = smol::block_on(serve(config))?;
 
-        Result::<_>::Ok(status)
-    })?;
+    // process::exit(status);
+    Ok(())
+}
 
-    process::exit(status);
+async fn serve(config: Config) -> Result<()> {
+    let ctrlc = CtrlC::new().context("Failed to create a SIGINT handler")?;
+    let fixure_cmd = config.fixture_cmd();
+
+    // let mut fixture = FixtureProcess::spawn(config, ctrlc).await?;
+    // let status = fixture.serve().await?;
+    // fixture
+    //     .join()
+    //     .await?
+    //     .as_result()
+    //     .context("fixture teardown failure")?;
+
+    let server = smol::spawn(Server::new(config)?.run());
+    FixtureProcess::spawn(fixure_cmd, ctrlc)?
+        .await?
+        .as_result()
+        .context("Fixture teardown failure")?;
+
+    server.await
 }

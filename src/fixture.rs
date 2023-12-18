@@ -14,7 +14,7 @@ use crate::{
 
 use self::socket::{Connection, Socket};
 
-mod socket;
+pub mod socket; // TODO: move
 
 pub struct FixtureProcess {
     config: Config,

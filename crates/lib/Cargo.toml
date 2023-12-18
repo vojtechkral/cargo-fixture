@@ -7,7 +7,7 @@ license = "Apache-2.0"
 keywords = ["rust", "cargo", "testing"] # TODO: more?
 edition = "2021"
 
-# TODO: ensure deps shared with binary have same versions
+# TODO: workspace deps
 
 [lib]
 name = "cargo_fixture"
@@ -23,5 +23,6 @@ tokio = { version = "1", features = ["net", "io-util"], optional = true}
 cargo-fixture-macros = { path = "../macros" }  # FIXME: from crates
 
 [features]
+default = ["smol"]
 smol = ["dep:smol"]
 tokio = ["dep:tokio"]

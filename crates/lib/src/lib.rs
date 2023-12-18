@@ -1,9 +1,11 @@
 #[doc(hidden)]
 pub mod data;
 pub mod error;
-pub mod rpc;
+pub mod rpc;  // TODO: rm
 #[doc(hidden)]
-pub mod socket;
+pub mod rpc_socket;
+#[doc(hidden)]
+pub mod socket;  // TODO: rm
 mod utils;
 
 pub use cargo_fixture_macros::with_fixture;

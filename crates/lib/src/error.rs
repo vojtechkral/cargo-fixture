@@ -19,6 +19,8 @@ pub enum Error {
 
     #[error("Unexpected response from cargo fixture: {0:?}")]
     RpcMismatch(Response),
+    #[error("Unexpected response from cargo fixture: {0:?}")]
+    RpcMismatch_(crate::rpc_socket::Response),
 
     #[error("cargo fixture socket unexpectedly hung up")]
     RpcHangup,

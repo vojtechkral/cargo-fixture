@@ -15,7 +15,6 @@ use crate::utils::CommandExt as _;
 
 pin_project! {
     pub struct FixtureProcess {
-        // #[pin]
         child: Child,
         #[pin]
         ctrlc: CtrlC,

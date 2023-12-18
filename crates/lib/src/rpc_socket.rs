@@ -1,10 +1,7 @@
 //! FIXME: doc-comment
 
-// FIXME: merge with Socket?
+use std::{env, future::Future, path::PathBuf};
 
-use std::{env, path::PathBuf, future::Future};
-
-use futures_util::TryFuture;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 // Unix
@@ -26,7 +23,7 @@ use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 use crate::{Error, Result};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub enum ConnectionType {
     Fixture,
@@ -127,14 +124,6 @@ impl RpcSocket {
         } else {
             serde_json::from_str(&self.buffer.trim()).map_err(Error::RpcSerde)
         }
-    }
-
-    pub async fn handle_request<F, Ft, R, E>(&mut self, responder: F) -> Result<R, E>
-    where F: FnOnce(Request) -> Ft, Ft: Future<Output = Result<(Response, R), E>>, E: From<Error> {
-        let request = self.recv().await?;
-        let (response, res) = responder(request).await?;
-        self.send(response).await?;
-        Ok(res)
     }
 
     async fn call(&mut self, request: Request) -> Result<Response> {

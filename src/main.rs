@@ -45,23 +45,17 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-async fn serve(config: Config) -> Result<()> {
+async fn serve(config: Config) -> Result<i32> {
+    // TODO: ctrlc should also be handled by Server
     let ctrlc = CtrlC::new().context("Failed to create a SIGINT handler")?;
     let fixure_cmd = config.fixture_cmd();
-
-    // let mut fixture = FixtureProcess::spawn(config, ctrlc).await?;
-    // let status = fixture.serve().await?;
-    // fixture
-    //     .join()
-    //     .await?
-    //     .as_result()
-    //     .context("fixture teardown failure")?;
-
     let server = smol::spawn(Server::new(config)?.run());
-    FixtureProcess::spawn(fixure_cmd, ctrlc)?
+    let fixture = FixtureProcess::spawn(fixure_cmd, ctrlc)?;
+    let status = server.await?;
+    fixture
         .await?
         .as_result()
         .context("Fixture teardown failure")?;
 
-    server.await
+    Ok(status)
 }

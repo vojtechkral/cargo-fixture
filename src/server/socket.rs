@@ -3,8 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Ok, Result, anyhow};
-use cargo_fixture::rpc_socket::{RpcSocket, ConnectionType, Request, Response};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use log::{trace, Level};
 use serde::{de::DeserializeOwned, Serialize};
 // FIXME: Windows
@@ -14,16 +13,18 @@ use smol::{
 };
 // https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
 
+use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
+
 use crate::utils::RmGuard;
 
 #[derive(Debug)]
-pub struct Socket {
+pub struct ServerSocket {
     socket: UnixListener,
     /// Ensure socket file is removed as soon as not necessary
     _rm_guard: RmGuard<PathBuf>,
 }
 
-impl Socket {
+impl ServerSocket {
     pub fn new(socket_path: &Path) -> Result<Self> {
         trace!("waiting for a connection on {}", socket_path.display());
         let rm_guard = RmGuard::new(socket_path.to_owned(), Level::Trace);
@@ -42,20 +43,19 @@ impl Socket {
             .await
             .context("Error accepting fixture connection")?;
 
-        let socket = RpcSocket::new(socket);
-        socket.handle_request(|req| async {
-            if let Request::Hello { version, connection_type } = req {
-                // FIXME: check version
-                Ok((Response::Ok, connection_type))
-            } else {
-                return Err(anyhow!(""));
-            }
-        })?;
+        // Perform a connection handshake
+        let mut socket = RpcSocket::new(socket);
+        let our_ver = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
+        let connection_type = match socket.recv().await? {
+            Request::Hello { version, connection_type } if version == our_ver => connection_type,
+            Request::Hello { version: theirs, .. } =>
+                                bail!("This cargo-fixture binary version ({our_ver}.x.y) is not compatible with the library linked by test code ({theirs}.x.y)"),
 
-        trace!("connection accepted");
+            other => bail!("Expected Hello message, got {other:?}"),
+        };
+        socket.send(Response::Ok).await?;
 
-        let socket = BufReader::new(socket);
-        let buffer = String::with_capacity(1024);
-        Ok(Connection { socket, buffer })
+        trace!("connection accepted ({connection_type:?})");
+        Ok((socket, connection_type))
     }
 }

@@ -1,9 +1,7 @@
-use clap::ValueEnum;
 use log::{LevelFilter, Log, Metadata, Record};
 use strum::EnumString;
 
-#[derive(EnumString, ValueEnum, Clone, Copy, Default, Debug)]
-#[clap(rename_all = "lower")]
+#[derive(EnumString, Clone, Copy, Default, Debug)]
 #[strum(ascii_case_insensitive)]
 pub enum LogLevel {
     Off,

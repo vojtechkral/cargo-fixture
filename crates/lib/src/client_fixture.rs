@@ -11,18 +11,9 @@ pub struct FixtureClient {
 
 impl FixtureClient {
     pub async fn connect() -> Result<Self> {
-        let mut socket = RpcSocket::connect().await?;
-        let version = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
-        let connection_type = ConnectionType::Fixture;
-        socket
-            .call(Request::Hello {
-                version,
-                connection_type,
-            })
-            .await?
-            .as_ok()?;
-        // socket.call(Request::SetEnv { name: "Foo".into(), value: "value".into() }).await?.as_ok()?;
-        Ok(Self { socket })
+        RpcSocket::connect(ConnectionType::Fixture)
+            .await
+            .map(|socket| Self { socket })
     }
 
     pub async fn set_env_var(

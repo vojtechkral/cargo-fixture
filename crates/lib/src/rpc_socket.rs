@@ -12,7 +12,7 @@ use crate::{Error, Result};
 pub mod platform;
 use platform::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader, UnixStream};
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub enum ConnectionType {
     Fixture,
@@ -101,10 +101,20 @@ pub struct RpcSocket {
 }
 
 impl RpcSocket {
-    pub(crate) async fn connect() -> Result<Self> {
+    pub(crate) async fn connect(connection_type: ConnectionType) -> Result<Self> {
         let path = PathBuf::from(env::var_os("CARGO_FIXTURE_SOCKET").ok_or(Error::RpcNoEnvVar)?);
         let stream = UnixStream::connect(path).await.map_err(Error::RpcIo)?;
-        Ok(Self::new(stream))
+        let mut this = Self::new(stream);
+
+        // Perform handshake
+        let version = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
+        this.call(Request::Hello {
+            version,
+            connection_type,
+        })
+        .await?
+        .as_ok()?;
+        Ok(this)
     }
 
     pub fn new(stream: UnixStream) -> Self {

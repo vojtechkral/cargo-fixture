@@ -66,14 +66,14 @@ impl Config {
         } else {
             let mut cmd = Command::new(self.cargo_exe.clone());
             // NB. --features is additive
-            // TODO: configurable feature name? (nah)
             cmd.args(["test", "--features", "fixture"]);
 
             cmd.args(&self.cli.cargo_common_all)
                 .args(extra_test_args)
                 .arg("--")
                 .args(&self.cli.harness_args)
-                .args(extra_harness_args);
+                .args(extra_harness_args)
+                .env("CARGO_FIXTURE_SOCKET", &self.socket_path);
             cmd
         };
         cmd.stdin(Stdio::inherit())

@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 
 use crate::{
-    rpc_socket::{Request, RpcSocket},
+    rpc_socket::{ConnectionType, Request, RpcSocket},
     Result,
 };
 
@@ -10,6 +10,12 @@ pub struct TestClient {
 }
 
 impl TestClient {
+    pub async fn connect(serial: bool) -> Result<Self> {
+        RpcSocket::connect(ConnectionType::client(serial))
+            .await
+            .map(|socket| Self { socket })
+    }
+
     pub async fn get_value<T>(&mut self, key: impl Into<String>) -> Result<T>
     where
         T: DeserializeOwned,

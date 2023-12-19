@@ -10,7 +10,7 @@ use futures_util::{pin_mut, select, FutureExt};
 use log::{debug, info, warn};
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
-use smol::Task;
+use smol::{process::Command as SmolCommand, Task};
 
 use crate::{
     config::Config,
@@ -134,8 +134,8 @@ impl FixtureConnection {
                 Request::GetKeyValue { key } => self.handle_get_key_value(key),
                 Request::SetExtraTestArgs { args } => self.handle_set_extra_test_args(args),
                 Request::SetExtraHarnessArgs { args } => self.handle_set_extra_harness_args(args),
-                Request::Ready => self.handle_ready(),
-                req @ Request::Hello { .. } => panic!("Unexpected Hello message {req:?}"),
+                Request::Ready => self.handle_ready().await,
+                hello @ Request::Hello { .. } => bail!("Unexpected Hello message: {hello:?}"),
             };
             self.socket.send(resp).await?;
 
@@ -175,18 +175,20 @@ impl FixtureConnection {
         Response::Ok
     }
 
-    fn handle_ready(&mut self) -> Response {
-        let success = self.run_tests();
+    async fn handle_ready(&mut self) -> Response {
+        let success = self.run_tests().await;
         Response::TestsFinished { success }
     }
 
-    fn run_tests(&mut self) -> bool {
+    async fn run_tests(&mut self) -> bool {
         let extra_test_args = mem::take(&mut self.extra_test_args);
         let extra_harness_args = mem::take(&mut self.extra_harness_args);
-        let mut test_cmd = self.config.test_cmd(extra_test_args, extra_harness_args);
+        let test_cmd = self.config.test_cmd(extra_test_args, extra_harness_args);
         info!("running {}", test_cmd.display());
+        let mut test_cmd = SmolCommand::from(test_cmd);
         test_cmd
             .status()
+            .await
             .map(|status| {
                 debug!("test command: {status:?}");
                 self.return_status = status.code().or(Some(1));
@@ -211,7 +213,27 @@ impl TestConnection {
         Self { socket, kv_store }
     }
 
-    async fn run(self) {
-        todo!()
+    async fn run(mut self) {
+        if let Err(err) = self.run_inner().await {
+            warn!("Test connection error: {err}");
+        }
+    }
+
+    async fn run_inner(&mut self) -> Result<()> {
+        loop {
+            let Some(req) = self.socket.recv().await? else {
+                return Ok(());
+            };
+            let resp = match req {
+                Request::GetKeyValue { key } => self.handle_get_key_value(key),
+                other => bail!("Unexpected message: {other:?}"),
+            };
+            self.socket.send(resp).await?;
+        }
+    }
+
+    fn handle_get_key_value(&mut self, key: String) -> Response {
+        let value = self.kv_store.read().unwrap().get(&key).cloned();
+        Response::KeyValue { key, value }
     }
 }

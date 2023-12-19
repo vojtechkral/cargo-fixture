@@ -10,6 +10,10 @@ pub struct FixtureClient {
 }
 
 impl FixtureClient {
+    pub async fn connect() -> Result<Self> {
+        RpcSocket::connect().await.map(|socket| Self { socket })
+    }
+
     pub async fn set_env_var(
         &mut self,
         name: impl Into<String>,

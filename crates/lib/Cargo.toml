@@ -23,6 +23,6 @@ tokio = { version = "1", features = ["net", "io-util"], optional = true}
 cargo-fixture-macros = { path = "../macros" }  # FIXME: from crates
 
 [features]
-default = ["smol"]
+default = ["smol"]  # FIXME: should be default? Disable smol stuff when tokio is enabled?
 smol = ["dep:smol"]
 tokio = ["dep:tokio"]

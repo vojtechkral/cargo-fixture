@@ -149,69 +149,6 @@ impl RpcSocket {
         self.send(request).await?;
         self.recv().await
     }
-
-    // FIXME: move these to FixtureClient
-
-    // pub async fn set_env_var(
-    //     &mut self,
-    //     name: impl Into<String>,
-    //     value: impl Into<String>,
-    // ) -> Result<()> {
-    //     let req = Request::SetEnv {
-    //         name: name.into(),
-    //         value: value.into(),
-    //     };
-
-    //     self.call(req).await?.as_ok()
-    // }
-
-    // pub async fn set_additional_cargo_test_args(
-    //     &mut self,
-    //     args: impl IntoIterator<Item = impl Into<String>>,
-    // ) -> Result<()> {
-    //     let to_cargo_test = Some(args.into_iter().map(Into::into).collect());
-    //     let req = Request::SetAdditionalArgs {
-    //         to_cargo_test,
-    //         to_harness: None,
-    //     };
-
-    //     self.call(req).await?.as_ok()
-    // }
-
-    // pub async fn set_additional_harness_args(
-    //     &mut self,
-    //     args: impl IntoIterator<Item = impl Into<String>>,
-    // ) -> Result<()> {
-    //     let to_harness = Some(args.into_iter().map(Into::into).collect());
-    //     let req = Request::SetAdditionalArgs {
-    //         to_cargo_test: None,
-    //         to_harness,
-    //     };
-
-    //     self.call(req).await?.as_ok()
-    // }
-
-    // TODO: rework (+ rename)
-    // #[maybe_async]
-    // /// Not public API, please use the `get/set_fixture_data` macros.
-    // pub fn set_fixture_data(
-    //     &mut self,
-    //     key: impl Into<String>,
-    //     path: PathBuf,
-    //     value: impl Serialize,
-    // ) -> Result<()> {
-    //     let file = File::create(&path)?;
-    //     serde_json::to_writer_pretty(file, &value).map_err(Error::DataSerde)?;
-    //     let req = Request::EnqueueData {
-    //         key: key.into(),
-    //         path,
-    //     };
-    //     maybe_await!(self.call(req))?.as_ok()
-    // }
-
-    // pub async fn ready(&mut self) -> Result<bool> {
-    //     self.call(Request::Ready).await?.as_tests_finished()
-    // }
 }
 
 #[cfg(test)]

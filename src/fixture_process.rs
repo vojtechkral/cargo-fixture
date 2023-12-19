@@ -1,17 +1,12 @@
-use std::{
-    pin::Pin,
-    process::{Command, ExitStatus},
-    task,
-};
+use std::{pin::Pin, process::ExitStatus, task};
 
 use anyhow::{anyhow, Context as _, Result};
-use async_ctrlc::CtrlC;
 use futures_util::{pin_mut, ready, Future};
 use log::debug;
 use pin_project_lite::pin_project;
 use smol::process::{Child, Command as SmolCommand};
 
-use crate::utils::CommandExt as _;
+use crate::{config::Config, utils::CommandExt as _, CtrlC};
 
 pin_project! {
     pub struct FixtureProcess {
@@ -22,13 +17,14 @@ pin_project! {
 }
 
 impl FixtureProcess {
-    pub fn spawn(fixture_cmd: Command, ctrlc: CtrlC) -> Result<Self> {
+    pub fn spawn(config: &Config, ctrlc: CtrlC) -> Result<Self> {
+        let fixture_cmd = config.fixture_cmd();
         debug!("running {}", fixture_cmd.display());
-        let mut child = SmolCommand::from(fixture_cmd)
+        let child = SmolCommand::from(fixture_cmd)
             .spawn()
             .context("Error launching fixture")?;
 
-        todo!()
+        Ok(Self { child, ctrlc })
     }
 }
 

@@ -3,14 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, bail, Context, Ok, Result};
+use anyhow::{bail, Context, Ok, Result};
 use log::{trace, Level};
-use serde::{de::DeserializeOwned, Serialize};
 // FIXME: Windows
-use smol::{
-    io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader},
-    net::unix::{UnixListener, UnixStream},
-};
+use smol::net::unix::UnixListener;
 // https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
@@ -20,7 +16,7 @@ use crate::utils::RmGuard;
 #[derive(Debug)]
 pub struct ServerSocket {
     socket: UnixListener,
-    /// Ensure socket file is removed as soon as not necessary
+    /// Ensure socket file is removed on server shutdown
     _rm_guard: RmGuard<PathBuf>,
 }
 
@@ -36,7 +32,7 @@ impl ServerSocket {
         })
     }
 
-    pub async fn accept(self) -> Result<(RpcSocket, ConnectionType)> {
+    pub async fn accept(&self) -> Result<(RpcSocket, ConnectionType)> {
         let (socket, _addr) = self
             .socket
             .accept()
@@ -47,9 +43,16 @@ impl ServerSocket {
         let mut socket = RpcSocket::new(socket);
         let our_ver = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
         let connection_type = match socket.recv().await? {
-            Request::Hello { version, connection_type } if version == our_ver => connection_type,
-            Request::Hello { version: theirs, .. } =>
-                                bail!("This cargo-fixture binary version ({our_ver}.x.y) is not compatible with the library linked by test code ({theirs}.x.y)"),
+            Request::Hello {
+                version,
+                connection_type,
+            } if version == our_ver => connection_type,
+
+            Request::Hello {
+                version: theirs, ..
+            } => {
+                bail!("This cargo-fixture binary version ({our_ver}.x.y) is not compatible with the library linked by test code ({theirs}.x.y)")
+            }
 
             other => bail!("Expected Hello message, got {other:?}"),
         };

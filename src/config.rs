@@ -54,8 +54,8 @@ impl Config {
 
     pub fn test_cmd(
         &self,
-        add_args_cargo_test: Vec<String>,
-        add_args_harness: Vec<String>,
+        extra_test_args: Vec<String>,
+        extra_harness_args: Vec<String>,
     ) -> Command {
         let mut cmd = if let Some(exec) = self.cli.exec.get(0) {
             let mut cmd = Command::new(exec);
@@ -68,10 +68,10 @@ impl Config {
             cmd.args(["test", "--features", "fixture"]);
 
             cmd.args(&self.cli.cargo_common_all)
-                .args(add_args_cargo_test)
+                .args(extra_test_args)
                 .arg("--")
                 .args(&self.cli.harness_args)
-                .args(add_args_harness);
+                .args(extra_harness_args);
             cmd
         };
         cmd.stdin(Stdio::inherit())

@@ -1,6 +1,6 @@
 //! FIXME: doc-comment
 
-use std::{env, future::Future, path::PathBuf};
+use std::{env, path::PathBuf};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -42,13 +42,16 @@ pub enum Request {
         name: String,
         value: String,
     },
-    EnqueueData {
+    // TODO: naming of this stuff?
+    SetKeyValue {
         key: String,
-        path: PathBuf,
+        value: serde_json::Value,
     },
-    SetAdditionalArgs {
-        to_cargo_test: Option<Vec<String>>,
-        to_harness: Option<Vec<String>>,
+    SetExtraTestArgs {
+        args: Vec<String>,
+    },
+    SetExtraHarnessArgs {
+        args: Vec<String>,
     },
     Ready,
 }
@@ -126,51 +129,51 @@ impl RpcSocket {
         }
     }
 
-    async fn call(&mut self, request: Request) -> Result<Response> {
+    pub(crate) async fn call(&mut self, request: Request) -> Result<Response> {
         self.send(request).await?;
         self.recv().await
     }
 
     // FIXME: move these to FixtureClient
 
-    pub async fn set_env_var(
-        &mut self,
-        name: impl Into<String>,
-        value: impl Into<String>,
-    ) -> Result<()> {
-        let req = Request::SetEnv {
-            name: name.into(),
-            value: value.into(),
-        };
+    // pub async fn set_env_var(
+    //     &mut self,
+    //     name: impl Into<String>,
+    //     value: impl Into<String>,
+    // ) -> Result<()> {
+    //     let req = Request::SetEnv {
+    //         name: name.into(),
+    //         value: value.into(),
+    //     };
 
-        self.call(req).await?.as_ok()
-    }
+    //     self.call(req).await?.as_ok()
+    // }
 
-    pub async fn set_additional_cargo_test_args(
-        &mut self,
-        args: impl IntoIterator<Item = impl Into<String>>,
-    ) -> Result<()> {
-        let to_cargo_test = Some(args.into_iter().map(Into::into).collect());
-        let req = Request::SetAdditionalArgs {
-            to_cargo_test,
-            to_harness: None,
-        };
+    // pub async fn set_additional_cargo_test_args(
+    //     &mut self,
+    //     args: impl IntoIterator<Item = impl Into<String>>,
+    // ) -> Result<()> {
+    //     let to_cargo_test = Some(args.into_iter().map(Into::into).collect());
+    //     let req = Request::SetAdditionalArgs {
+    //         to_cargo_test,
+    //         to_harness: None,
+    //     };
 
-        self.call(req).await?.as_ok()
-    }
+    //     self.call(req).await?.as_ok()
+    // }
 
-    pub async fn set_additional_harness_args(
-        &mut self,
-        args: impl IntoIterator<Item = impl Into<String>>,
-    ) -> Result<()> {
-        let to_harness = Some(args.into_iter().map(Into::into).collect());
-        let req = Request::SetAdditionalArgs {
-            to_cargo_test: None,
-            to_harness,
-        };
+    // pub async fn set_additional_harness_args(
+    //     &mut self,
+    //     args: impl IntoIterator<Item = impl Into<String>>,
+    // ) -> Result<()> {
+    //     let to_harness = Some(args.into_iter().map(Into::into).collect());
+    //     let req = Request::SetAdditionalArgs {
+    //         to_cargo_test: None,
+    //         to_harness,
+    //     };
 
-        self.call(req).await?.as_ok()
-    }
+    //     self.call(req).await?.as_ok()
+    // }
 
     // TODO: rework (+ rename)
     // #[maybe_async]
@@ -190,9 +193,9 @@ impl RpcSocket {
     //     maybe_await!(self.call(req))?.as_ok()
     // }
 
-    pub async fn ready(&mut self) -> Result<bool> {
-        self.call(Request::Ready).await?.as_tests_finished()
-    }
+    // pub async fn ready(&mut self) -> Result<bool> {
+    //     self.call(Request::Ready).await?.as_tests_finished()
+    // }
 }
 
 #[cfg(test)]

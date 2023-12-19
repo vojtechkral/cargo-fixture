@@ -6,7 +6,10 @@ use log::debug;
 use pin_project_lite::pin_project;
 use smol::process::{Child, Command as SmolCommand};
 
-use crate::{config::Config, utils::CommandExt as _, CtrlC};
+use crate::{
+    config::Config,
+    utils::{CommandExt as _, CtrlC},
+};
 
 pin_project! {
     pub struct FixtureProcess {

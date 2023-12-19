@@ -2,9 +2,9 @@ use std::{env, process, sync::Arc};
 
 use anyhow::{bail, Context as _, Ok, Result};
 use fixture_process::FixtureProcess;
-use futures_util::{future::Shared, FutureExt as _};
 use log::info;
 use server::Server;
+use utils::CtrlC;
 
 use crate::{config::Config, utils::ExitStatusExt};
 
@@ -27,8 +27,6 @@ mod utils;
 
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
-pub(crate) type CtrlC = Shared<async_ctrlc::CtrlC>;
-
 fn main() -> Result<()> {
     if env::var_os(ENV_CARGO_FIXTURE).is_some() {
         bail!("Cannot run cargo fixture inside another cargo fixture"); // TODO: test
@@ -46,11 +44,7 @@ fn main() -> Result<()> {
 }
 
 async fn serve(config: Config) -> Result<i32> {
-    // TODO: ctrlc should also be handled by Server
-    let ctrlc = async_ctrlc::CtrlC::new()
-        .context("Failed to create a SIGINT handler")?
-        .shared();
-
+    let ctrlc = CtrlC::new()?;
     let config = Arc::new(config);
     let server = smol::spawn(Server::new(config.clone(), ctrlc.clone())?.run());
     let fixture = FixtureProcess::spawn(&config, ctrlc)?;

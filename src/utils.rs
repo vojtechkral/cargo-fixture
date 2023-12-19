@@ -2,11 +2,18 @@ use std::{
     ffi::OsStr,
     fmt, fs,
     path::Path,
+    pin::Pin,
     process::{Command, ExitStatus},
+    task,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context as _, Ok, Result};
+use futures_util::{
+    future::{FusedFuture, Shared},
+    pin_mut, select, Future, FutureExt,
+};
 use log::{log, warn, Level};
+use pin_project_lite::pin_project;
 
 pub trait CommandExt {
     fn display<'a>(&'a self) -> CommandPrint<'a>;
@@ -26,7 +33,7 @@ impl<'a> fmt::Display for CommandPrint<'a> {
         for arg in self.0.get_args() {
             write!(f, " {}", arg.to_string_lossy())?;
         }
-        Ok(())
+        fmt::Result::Ok(())
     }
 }
 
@@ -92,5 +99,53 @@ pub trait OsStrExt {
 impl<'a> OsStrExt for &'a OsStr {
     fn starts_with(&self, c: char) -> bool {
         self.to_string_lossy().chars().next() == Some(c)
+    }
+}
+
+pin_project! {
+    #[derive(Clone)]
+    pub struct CtrlC {
+        #[pin]
+        inner: Shared<async_ctrlc::CtrlC>
+    }
+}
+
+impl CtrlC {
+    pub fn new() -> Result<Self> {
+        let inner = async_ctrlc::CtrlC::new()
+            .context("Failed to create a SIGINT handler")?
+            .shared();
+        Ok(Self { inner })
+    }
+
+    pub async fn interruptible<F, R>(&mut self, fut: F) -> Result<R>
+    where
+        F: Future<Output = Result<R>>,
+    {
+        let mut ctrlc = self;
+        let fut = fut.fuse();
+        pin_mut!(fut);
+        select! {
+            res = fut => res,
+            _ = ctrlc => Err(Self::error()),
+        }
+    }
+
+    fn error() -> anyhow::Error {
+        anyhow!("Interrupted")
+    }
+}
+
+impl Future for CtrlC {
+    type Output = Result<()>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> task::Poll<Self::Output> {
+        self.project().inner.poll(cx).map(|_| Err(Self::error()))
+    }
+}
+
+impl FusedFuture for CtrlC {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_terminated()
     }
 }

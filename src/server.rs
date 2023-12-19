@@ -12,7 +12,10 @@ use log::{debug, info, warn};
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
 use smol::Task;
 
-use crate::{config::Config, utils::CommandExt as _, CtrlC};
+use crate::{
+    config::Config,
+    utils::{CommandExt as _, CtrlC},
+};
 
 mod server_socket;
 use server_socket::ServerSocket;
@@ -39,14 +42,15 @@ impl Server {
         })
     }
 
-    pub async fn run(self) -> Result<i32> {
-        let (socket, conn_type) = self.socket.accept().await?;
+    pub async fn run(mut self) -> Result<i32> {
+        let (socket, conn_type) = self.ctrlc.interruptible(self.socket.accept()).await?;
         if conn_type != ConnectionType::Fixture {
             bail!("Unexpected connection {conn_type:?}, expected fixture connection first");
         }
 
         let fixture = FixtureConnection::new(socket, self.config.clone(), self.kv_store.clone());
         let mut fixture = smol::spawn(fixture.run()).fuse();
+        let mut ctrlc = self.ctrlc.clone();
 
         loop {
             let conn = self.socket.accept().fuse();
@@ -54,6 +58,7 @@ impl Server {
             select! {
                 res = conn => self.handle_test_connection(res?).await?,
                 res = fixture => return res,
+                res = ctrlc => res?,
             }
         }
     }
@@ -184,7 +189,6 @@ impl FixtureConnection {
 /// Handles connection from individual tests.
 struct TestConnection {
     socket: RpcSocket,
-    // config: Arc<Config>,  // TODO: needed?
     kv_store: KvStore,
 }
 

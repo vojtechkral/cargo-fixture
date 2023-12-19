@@ -170,7 +170,7 @@ impl FixtureConnection {
     }
 
     fn handle_set_extra_harness_args(&mut self, args: Vec<String>) -> Response {
-        debug!("setting test binary args: {args:?}");
+        debug!("setting extra test binary args: {args:?}");
         self.extra_harness_args = args;
         Response::Ok
     }

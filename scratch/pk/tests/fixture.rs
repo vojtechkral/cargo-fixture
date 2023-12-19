@@ -1,13 +1,13 @@
 use std::time::Duration;
 use std::{env, thread};
 
-use cargo_fixture::{self, set_fixture_data, Fixture, FixtureClient};
+use cargo_fixture::FixtureClient;
 
 use crate::shared::SharedData;
 
 mod shared;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     dbg!(args);
@@ -20,5 +20,7 @@ async fn main() {
     // thread::sleep(Duration::from_millis(500));
     // dbg!(fixture.ready().unwrap());
 
-    let client = FixtureClient::connect();
+    let mut fixture = FixtureClient::connect().await.unwrap();
+    fixture.set_env_var("FOO", "bar").await.unwrap();
+    // dbg!(fixture.ready().await.unwrap());
 }

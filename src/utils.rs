@@ -63,22 +63,24 @@ where
 }
 
 pub trait ExitStatusExt {
-    fn as_result(&self) -> Result<()>;
+    fn as_result(&self, context: &str) -> Result<()>;
     fn fixture_early_exit<T>(&self) -> Result<T>;
 }
 
 impl ExitStatusExt for ExitStatus {
-    fn as_result(&self) -> Result<()> {
+    fn as_result(&self, context: &str) -> Result<()> {
         match self.code() {
             Some(0) => Ok(()),
-            Some(c) => bail!("Exit code: {c}"),
-            None => bail!("Process killed by a signal"),
+            Some(c) => bail!("{context}: exit code: {c}"),
+            None => bail!("{context}: killed by a signal"),
         }
     }
 
+    // TODO: rm?
     fn fixture_early_exit<T>(&self) -> Result<T> {
-        self.as_result().context("Fixture failed")?;
-        bail!("Fixture didn't connect to cargo fixture")
+        unimplemented!()
+        // self.as_result().context("Fixture failed")?;
+        // bail!("Fixture didn't connect to cargo fixture")
     }
 }
 

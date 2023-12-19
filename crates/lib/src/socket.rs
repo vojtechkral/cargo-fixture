@@ -7,7 +7,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use smol::net::unix::UnixStream;
 #[cfg(all(unix, not(any(feature = "smol", feature = "tokio"))))]
 use std::os::unix::net::UnixStream;
-#[cfg(all(unix, not(any(feature = "smol", feature = "tokio"))))]
+#[cfg(all(unix, feature = "tokio"))]
 use tokio::net::UnixStream;
 
 // Windows  TODO:
@@ -20,7 +20,7 @@ use uds_windows::UnixListener; // https://docs.rs/uds_windows/latest/uds_windows
 use smol::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 #[cfg(not(any(feature = "smol", feature = "tokio")))]
 use std::io::{BufRead as _, BufReader, Write as _};
-#[cfg(not(any(feature = "smol", feature = "tokio")))]
+#[cfg(feature = "tokio")]
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 use crate::{

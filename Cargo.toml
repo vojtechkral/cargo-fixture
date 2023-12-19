@@ -10,7 +10,7 @@ edition = "2021"
 [[bin]]
 name = "cargo-fixture"
 
-# TODO: workspace deps
+# TODO: workspace deps?
 
 [dependencies]
 anyhow = "1"
@@ -25,13 +25,16 @@ strum = { version = "0.25.0", features = ["derive"] }
 thiserror = "1.0.51"
 tabular = "0.2.0"
 
-cargo-fixture-lib = { path = "crates/lib" }
-pin-project-lite = "0.2.13"
+cargo-fixture-lib = { path = "crates/lib", features = ["smol"] }
+pin-project-lite = "0.2.13" # FIXME: needed?
 
 [workspace]
 members = [
     "crates/lib",
     "crates/macros",
+]
+# TODO: can't have both smol- and tokio-enabled lib in the same ws
+exclude = [
     "example",
-    "scratch/pk", # FIXME: tmp
+    "scratch/pk",
 ]

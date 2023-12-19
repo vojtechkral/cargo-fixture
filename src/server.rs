@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 use futures_util::{pin_mut, select, FutureExt};
 use log::{debug, info, warn};
@@ -43,7 +43,11 @@ impl Server {
     }
 
     pub async fn run(mut self) -> Result<i32> {
-        let (socket, conn_type) = self.ctrlc.interruptible(self.socket.accept()).await?;
+        let (socket, conn_type) = self
+            .ctrlc
+            .interruptible(self.socket.accept())
+            .await
+            .context("Fixture connection error")?;
         if conn_type != ConnectionType::Fixture {
             bail!("Unexpected connection {conn_type:?}, expected fixture connection first");
         }
@@ -120,7 +124,10 @@ impl FixtureConnection {
 
     async fn run(mut self) -> Result<i32> {
         loop {
-            let req = self.socket.recv().await?;
+            let Some(req) = self.socket.recv().await? else {
+                warn!("fixture program never called .ready(), tests not run");
+                return Ok(0);
+            };
             let resp = match req {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),
                 Request::SetKeyValue { key, value } => self.handle_set_key_value(key, value),
@@ -140,6 +147,7 @@ impl FixtureConnection {
 
     fn handle_set_env(&self, name: String, value: String) -> Response {
         debug!("setting env var {name}={value}");
+        // FIXME: panics, see docs on when
         env::set_var(name, value);
         Response::Ok
     }

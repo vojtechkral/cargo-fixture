@@ -3,13 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use log::{trace, Level};
-// FIXME: Windows
-use smol::net::unix::UnixListener;
-// https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
 
-use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
+use cargo_fixture::rpc_socket::{
+    platform::UnixListener, ConnectionType, Request, Response, RpcSocket,
+};
 
 use crate::utils::RmGuard;
 
@@ -22,7 +21,7 @@ pub struct ServerSocket {
 
 impl ServerSocket {
     pub fn new(socket_path: &Path) -> Result<Self> {
-        trace!("waiting for a connection on {}", socket_path.display());
+        trace!("accepting connections on {}", socket_path.display());
         let rm_guard = RmGuard::new(socket_path.to_owned(), Level::Trace);
         let socket = UnixListener::bind(socket_path)
             .with_context(|| format!("Could not create a socket at {}", socket_path.display()))?;
@@ -37,12 +36,17 @@ impl ServerSocket {
             .socket
             .accept()
             .await
-            .context("Error accepting fixture connection")?;
+            .context("Error accepting connection")?;
+        trace!("connection accepted, performing handshake...");
 
         // Perform a connection handshake
         let mut socket = RpcSocket::new(socket);
         let our_ver = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
-        let connection_type = match socket.recv().await? {
+        let msg = socket
+            .recv()
+            .await?
+            .ok_or_else(|| anyhow!("Connection closed before handshake"))?;
+        let connection_type = match msg {
             Request::Hello {
                 version,
                 connection_type,
@@ -58,7 +62,7 @@ impl ServerSocket {
         };
         socket.send(Response::Ok).await?;
 
-        trace!("connection accepted ({connection_type:?})");
+        trace!("connection handshake ok ({connection_type:?})");
         Ok((socket, connection_type))
     }
 }

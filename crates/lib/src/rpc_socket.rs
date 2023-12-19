@@ -1,27 +1,16 @@
 //! FIXME: doc-comment
 
+// TODO: tracing?
+
 use std::{env, path::PathBuf};
 
+use log::trace;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-// Unix
-#[cfg(all(unix, feature = "smol"))]
-use smol::net::unix::UnixStream;
-#[cfg(all(unix, not(feature = "smol"), feature = "tokio"))]
-use tokio::net::UnixStream;
-
-// Windows  TODO:
-#[cfg(windows)]
-use uds_windows::UnixListener; // https://docs.rs/uds_windows/latest/uds_windows/struct.UnixListener.html
-                               // TODO: will need to be wrapped for async? Or converted to TcpStream?
-
-// Platform common
-#[cfg(feature = "smol")]
-use smol::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
-#[cfg(all(not(feature = "smol"), feature = "tokio"))]
-use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
-
 use crate::{Error, Result};
+
+pub mod platform;
+use platform::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader, UnixStream};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "kebab-case")]
@@ -29,6 +18,16 @@ pub enum ConnectionType {
     Fixture,
     Client,
     ClientSerial,
+}
+
+impl ConnectionType {
+    pub fn client(serial: bool) -> Self {
+        if serial {
+            Self::ClientSerial
+        } else {
+            Self::Client
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -119,6 +118,7 @@ impl RpcSocket {
         T: Serialize,
     {
         let mut msg = serde_json::to_string(&msg).map_err(Error::RpcSerde)?;
+        trace!("RPC send: {msg}");
         msg.push('\n');
         self.socket
             .get_mut()
@@ -128,7 +128,7 @@ impl RpcSocket {
         Ok(())
     }
 
-    pub async fn recv<T>(&mut self) -> Result<T>
+    pub async fn recv<T>(&mut self) -> Result<Option<T>>
     where
         T: DeserializeOwned,
     {
@@ -139,15 +139,17 @@ impl RpcSocket {
             .await
             .map_err(Error::RpcIo)?;
         if num_read == 0 {
-            Err(Error::RpcHangup)
+            Ok(None)
         } else {
-            serde_json::from_str(&self.buffer.trim()).map_err(Error::RpcSerde)
+            let msg = &self.buffer.trim();
+            trace!("RPC recv: {msg}");
+            serde_json::from_str(msg).map(Some).map_err(Error::RpcSerde)
         }
     }
 
     pub(crate) async fn call(&mut self, request: Request) -> Result<Response> {
         self.send(request).await?;
-        self.recv().await
+        self.recv().await?.ok_or(Error::RpcHangup)
     }
 }
 

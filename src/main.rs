@@ -1,12 +1,13 @@
 use std::{env, process, sync::Arc};
 
-use anyhow::{bail, Context as _, Ok, Result};
+use anyhow::{bail, Result};
 use fixture_process::FixtureProcess;
+use futures_util::{pin_mut, select, FutureExt};
 use log::info;
 use server::Server;
 use utils::CtrlC;
 
-use crate::{config::Config, utils::ExitStatusExt};
+use crate::config::Config;
 
 mod cli;
 mod config;
@@ -46,13 +47,15 @@ fn main() -> Result<()> {
 async fn serve(config: Config) -> Result<i32> {
     let ctrlc = CtrlC::new()?;
     let config = Arc::new(config);
-    let server = smol::spawn(Server::new(config.clone(), ctrlc.clone())?.run());
+    let mut server = smol::spawn(Server::new(config.clone(), ctrlc.clone())?.run()).fuse();
     let fixture = FixtureProcess::spawn(&config, ctrlc)?;
-    let status = server.await?;
-    fixture
-        .await?
-        .as_result()
-        .context("Fixture teardown failure")?;
+    let fixture_join = fixture.join().fuse();
+    pin_mut!(fixture_join);
 
-    Ok(status)
+    select! {
+        res = server => return res,
+        res = fixture_join => res?,
+    }
+
+    server.await
 }

@@ -1,22 +1,16 @@
-use std::{pin::Pin, process::ExitStatus, task};
-
-use anyhow::{anyhow, Context as _, Result};
-use futures_util::{pin_mut, ready, Future};
+use anyhow::{Context as _, Result};
+use futures_util::FutureExt as _;
 use log::debug;
-use pin_project_lite::pin_project;
 use smol::process::{Child, Command as SmolCommand};
 
 use crate::{
     config::Config,
-    utils::{CommandExt as _, CtrlC},
+    utils::{CommandExt as _, CtrlC, ExitStatusExt},
 };
 
-pin_project! {
-    pub struct FixtureProcess {
-        child: Child,
-        #[pin]
-        ctrlc: CtrlC,
-    }
+pub struct FixtureProcess {
+    child: Child,
+    ctrlc: CtrlC,
 }
 
 impl FixtureProcess {
@@ -29,20 +23,13 @@ impl FixtureProcess {
 
         Ok(Self { child, ctrlc })
     }
-}
 
-impl Future for FixtureProcess {
-    type Output = Result<ExitStatus>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> task::Poll<Self::Output> {
-        let this = self.project();
-
-        ready!(this.ctrlc.poll(cx).map(|_| anyhow!("Interrupted")));
-
-        let status = this.child.status();
-        pin_mut!(status);
-        status
-            .poll(cx)
-            .map(|res| res.context("fixture process failed"))
+    pub async fn join(mut self) -> Result<()> {
+        let err_context = "fixture program failed";
+        let status = self.child.status().map(|res| {
+            res.context(err_context)
+                .and_then(|s| s.as_result(err_context))
+        });
+        self.ctrlc.interruptible(status).await
     }
 }

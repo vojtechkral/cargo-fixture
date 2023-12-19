@@ -8,6 +8,7 @@ use std::{
 mod cargo_meta;
 
 use anyhow::Result;
+use log::debug;
 
 use self::cargo_meta::CargoMetadata;
 use crate::cli::Cli;
@@ -31,6 +32,7 @@ impl Config {
         let metadata = CargoMetadata::read(&cargo_exe, &cli.cargo_common_all)?;
 
         let target_dir = metadata.target_dir().clone();
+        debug!("target dir: {}", target_dir.display());
         let pid = process::id();
         let socket_path = target_dir.join(&format!(".cargo-fixture-{pid}.sock"));
 

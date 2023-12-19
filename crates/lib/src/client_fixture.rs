@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::{
-    rpc_socket::{Request, RpcSocket},
+    rpc_socket::{ConnectionType, Request, RpcSocket},
     Result,
 };
 
@@ -11,7 +11,18 @@ pub struct FixtureClient {
 
 impl FixtureClient {
     pub async fn connect() -> Result<Self> {
-        RpcSocket::connect().await.map(|socket| Self { socket })
+        let mut socket = RpcSocket::connect().await?;
+        let version = env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap();
+        let connection_type = ConnectionType::Fixture;
+        socket
+            .call(Request::Hello {
+                version,
+                connection_type,
+            })
+            .await?
+            .as_ok()?;
+        // socket.call(Request::SetEnv { name: "Foo".into(), value: "value".into() }).await?.as_ok()?;
+        Ok(Self { socket })
     }
 
     pub async fn set_env_var(

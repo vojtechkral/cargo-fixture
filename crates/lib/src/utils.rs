@@ -1,3 +1,5 @@
+// TODO: rm
+
 macro_rules! maybe_await {
     ( $($tt:tt)* ) => {{
         #[cfg(any(feature = "smol", feature = "tokio"))] { $($tt)*.await }

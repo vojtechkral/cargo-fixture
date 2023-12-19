@@ -11,20 +11,13 @@ use crate::config::Config;
 
 mod cli;
 mod config;
-mod fixture;
 mod fixture_process;
 mod logger;
 mod server;
 mod utils;
 
-// TODO: rename data as tmpdata/tmp (??) -> nah, move to in-memory stuff with the new client
 // TODO: tests
 // TODO: docs
-// with-fixture fn args - env, data - nope
-/* TODO: config through Cargo.toml meta???
-    - feature name? - nejde, hardcoded v makru
-    - fixture test name? - je to opravdu uzitecne?
-*/
 
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 

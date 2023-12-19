@@ -75,21 +75,21 @@ impl Response {
     pub fn as_ok(self) -> Result<()> {
         match self {
             Self::Ok => Ok(()),
-            _ => Error::RpcMismatch_(self).into(),
+            _ => Error::RpcMismatch(self).into(),
         }
     }
 
     pub fn as_tests_finished(self) -> Result<bool> {
         match self {
             Response::TestsFinished { success } => Ok(success),
-            _ => Error::RpcMismatch_(self).into(),
+            _ => Error::RpcMismatch(self).into(),
         }
     }
 
     pub fn as_value(self) -> Result<serde_json::Value> {
         match self {
             Response::KeyValue { key, value } => value.ok_or(Error::MissingKeyValue(key)),
-            _ => Error::RpcMismatch_(self).into(),
+            _ => Error::RpcMismatch(self).into(),
         }
     }
 }

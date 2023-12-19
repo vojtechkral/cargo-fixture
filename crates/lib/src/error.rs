@@ -2,8 +2,6 @@ use std::{io, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::rpc::Response;
-
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Error, Debug)]
@@ -17,10 +15,8 @@ pub enum Error {
     #[error("Could not connect: CARGO_FIXTURE_SOCKET not set. cargo fixture not running?")]
     RpcNoEnvVar,
 
-    #[error("Unexpected response from cargo fixture: {0:?}")]
-    RpcMismatch(Response),
-    #[error("Unexpected response from cargo fixture: {0:?}")]
-    RpcMismatch_(crate::rpc_socket::Response),
+    #[error("Unexpected RPC response: {0:?}")]
+    RpcMismatch(crate::rpc_socket::Response),
 
     #[error("cargo fixture socket unexpectedly hung up")]
     RpcHangup,

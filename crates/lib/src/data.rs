@@ -53,7 +53,7 @@ where
 {
     if file.exists() {
         let file = File::open(&file)?;
-        serde_json::from_reader(file).map_err(Error::DataSerde)
+        serde_json::from_reader(file).map_err(Error::Serde)
     } else {
         Error::DataFileNotFound(key.as_ref().to_string(), file).into()
     }

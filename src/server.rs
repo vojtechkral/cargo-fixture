@@ -124,6 +124,7 @@ impl FixtureConnection {
             let resp = match req {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),
                 Request::SetKeyValue { key, value } => self.handle_set_key_value(key, value),
+                Request::GetKeyValue { key } => self.handle_get_key_value(key),
                 Request::SetExtraTestArgs { args } => self.handle_set_extra_test_args(args),
                 Request::SetExtraHarnessArgs { args } => self.handle_set_extra_harness_args(args),
                 Request::Ready => self.handle_ready(),
@@ -147,6 +148,11 @@ impl FixtureConnection {
         debug!("storing KV data for key `{key}`");
         self.kv_store.write().unwrap().insert(key, value);
         Response::Ok
+    }
+
+    fn handle_get_key_value(&mut self, key: String) -> Response {
+        let value = self.kv_store.read().unwrap().get(&key).cloned();
+        Response::KeyValue { key, value }
     }
 
     fn handle_set_extra_test_args(&mut self, args: Vec<String>) -> Response {

@@ -47,6 +47,9 @@ pub enum Request {
         key: String,
         value: serde_json::Value,
     },
+    GetKeyValue {
+        key: String,
+    },
     SetExtraTestArgs {
         args: Vec<String>,
     },
@@ -60,20 +63,33 @@ pub enum Request {
 #[serde(tag = "msg", content = "data")]
 pub enum Response {
     Ok,
-    TestsFinished { success: bool },
+    TestsFinished {
+        success: bool,
+    },
+    KeyValue {
+        key: String,
+        value: Option<serde_json::Value>,
+    },
 }
 
 impl Response {
-    fn as_ok(self) -> Result<()> {
+    pub fn as_ok(self) -> Result<()> {
         match self {
             Self::Ok => Ok(()),
             _ => Error::RpcMismatch_(self).into(),
         }
     }
 
-    fn as_tests_finished(self) -> Result<bool> {
+    pub fn as_tests_finished(self) -> Result<bool> {
         match self {
             Response::TestsFinished { success } => Ok(success),
+            _ => Error::RpcMismatch_(self).into(),
+        }
+    }
+
+    pub fn as_value(self) -> Result<serde_json::Value> {
+        match self {
+            Response::KeyValue { key, value } => value.ok_or(Error::MissingKeyValue(key)),
             _ => Error::RpcMismatch_(self).into(),
         }
     }

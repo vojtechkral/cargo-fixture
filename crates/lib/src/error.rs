@@ -25,19 +25,22 @@ pub enum Error {
     #[error("cargo fixture socket unexpectedly hung up")]
     RpcHangup,
 
-    #[error("Fixture data serde error")]
-    DataSerde(#[source] serde_json::Error),
+    #[error("De/serialization error")]
+    Serde(#[from] serde_json::Error),
 
     #[error("No file found for key `{0}` (path: {1})")]
     DataFileNotFound(String, PathBuf),
 
     #[error("I/O error")]
     GeneralIo(#[from] io::Error),
+
+    #[error("No value set for key `{0}`")]
+    MissingKeyValue(String),
 }
 
 impl Error {
-    pub fn as_data_serde(&self) -> Option<&serde_json::Error> {
-        if let Self::DataSerde(err) = self {
+    pub fn as_serde(&self) -> Option<&serde_json::Error> {
+        if let Self::Serde(err) = self {
             Some(err)
         } else {
             None

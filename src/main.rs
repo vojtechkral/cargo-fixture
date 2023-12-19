@@ -29,7 +29,7 @@ const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {
     if env::var_os(ENV_CARGO_FIXTURE).is_some() {
-        bail!("Cannot run cargo fixture inside another cargo fixture"); // TODO: test
+        bail!("Cannot run cargo fixture inside another cargo fixture");
     }
     env::set_var(ENV_CARGO_FIXTURE, "1");
 

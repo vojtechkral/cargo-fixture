@@ -138,7 +138,7 @@ impl Client {
         value: impl Serialize,
     ) -> Result<()> {
         let file = File::create(&path)?;
-        serde_json::to_writer_pretty(file, &value).map_err(Error::DataSerde)?;
+        serde_json::to_writer_pretty(file, &value).map_err(Error::Serde)?;
         let req = Request::EnqueueData {
             key: key.into(),
             path,

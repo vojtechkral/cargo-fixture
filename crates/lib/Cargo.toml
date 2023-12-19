@@ -4,24 +4,22 @@ version = "0.9.0" # TODO: ensure same version with binary
 authors = ["Vojtech Kral"]
 description = "FIXME: descr"
 license = "Apache-2.0"
-keywords = ["rust", "cargo", "testing"] # TODO: more?
+keywords = ["rust", "cargo", "testing"]
 edition = "2021"
-
-# TODO: workspace deps
 
 [lib]
 name = "cargo_fixture"
 path = "src/lib.rs"
 
 [dependencies]
-log = "0.4"
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
-smol = { version = "1", optional = true }
-thiserror = "1"
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+smol = { workspace = true, optional = true }
+thiserror.workspace = true
 tokio = { version = "1", features = ["net", "io-util"], optional = true}
 
-cargo-fixture-macros = { path = "../macros" }  # FIXME: from crates
+cargo-fixture-macros = { path = "../macros" }  # TODO: from crates?
 
 [features]
 smol = ["dep:smol"]

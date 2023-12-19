@@ -16,6 +16,9 @@ mod logger;
 mod server;
 mod utils;
 
+// with_fixture macro:
+//      TODO: instantiate TestClient (fn arg)
+//      TODO: serial
 // TODO: tests
 // TODO: docs
 

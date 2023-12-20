@@ -4,7 +4,7 @@ use cargo_fixture::{with_fixture, TestClient};
 
 #[with_fixture(serial)]
 #[tokio::test]
-async fn postgres_connect_basic(mut _client: TestClient) {
+async fn postgres_connect_basic(_client: TestClient) {
     let db_uri = env::var("POSTGRES_URI").unwrap();
     let count = cargo_fixture_example::count_example_rows(&db_uri)
         .await

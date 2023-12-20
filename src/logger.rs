@@ -1,7 +1,7 @@
 use log::{LevelFilter, Log, Metadata, Record};
 use strum::EnumString;
 
-#[derive(EnumString, Clone, Copy, Default, Debug)]
+#[derive(EnumString, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, Debug)]
 #[strum(ascii_case_insensitive)]
 pub enum LogLevel {
     Off,

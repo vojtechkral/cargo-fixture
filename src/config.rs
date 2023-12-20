@@ -11,7 +11,7 @@ use anyhow::Result;
 use log::debug;
 
 use self::cargo_meta::CargoMetadata;
-use crate::cli::Cli;
+use crate::{cli::Cli, logger::LogLevel};
 
 #[derive(Debug)]
 pub struct Config {
@@ -43,14 +43,24 @@ impl Config {
         })
     }
 
-    pub fn fixture_cmd(&self) -> Command {
+    pub fn fixture_cmd(&self, run: bool) -> Command {
         let mut cmd = Command::new(self.cargo_exe.clone());
-        cmd.arg("test")
-            .args(&self.cli.cargo_common_test)
-            .args(["-q", "--test", "fixture", "--"])
+
+        cmd.arg("test");
+        if run && self.cli.log_level < LogLevel::Debug {
+            cmd.arg("-q");
+        }
+        cmd.args(&self.cli.cargo_common_test)
+            .args(["--test", "fixture"]);
+        if !run {
+            cmd.arg("--no-run");
+        }
+
+        cmd.arg("--")
             .args(&self.cli.fixture_args)
             .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
             .stdin(Stdio::null());
+
         cmd
     }
 

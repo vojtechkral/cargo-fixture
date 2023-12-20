@@ -7,16 +7,15 @@ use pk::add;
 mod shared;
 use shared::SharedData;
 
-#[with_fixture]
+#[with_fixture(serial)]
 #[tokio::test]
-async fn it_works() {
+async fn it_works(mut client: TestClient) {
     let result = add(2, 2);
     assert_eq!(result, 4);
 
     let foo = env::var("FOO").unwrap();
     assert_eq!(foo, "bar");
 
-    let mut client = TestClient::connect(false).await.unwrap();
     let data = client.get_value::<SharedData>("abc").await.unwrap();
     assert_eq!(data.foo, "foo");
 }

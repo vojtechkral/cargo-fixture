@@ -1,203 +1,130 @@
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    braced,
     parse::{Parse, ParseStream},
-    parse_quote,
-    punctuated::Punctuated,
-    token, Attribute, Error, Expr, ExprCall, FnArg, Pat, Result, Signature, Token, Visibility,
+    spanned::Spanned,
+    Attribute, Error, Result, Signature, Visibility,
 };
 
-/// FIXME: mention tokio
+mod kw {
+    syn::custom_keyword!(serial);
+}
+
+pub struct Args {
+    serial: Option<kw::serial>,
+}
+
+impl Args {
+    fn serial_as_bool(&self) -> Ident {
+        let value = if self.serial.is_some() {
+            "true"
+        } else {
+            "false"
+        };
+        Ident::new(value, self.serial.span())
+    }
+}
+
+impl Parse for Args {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self {
+            serial: input.parse()?,
+        })
+    }
+}
+
+/// Like `ItemFn` but with the body not parsed (we don't need it).
+///
+/// NB. inner attributes on test fns are not supported by this
+/// (sorry, they're a major PITA and no one actually uses them I think?).
 pub struct TestFn {
-    outer_attrs: Vec<Attribute>,
-    vis: Visibility,
-    sig: Signature,
-    brace_token: token::Brace,
-    inner_attrs: Vec<Attribute>,
-    stmts: Vec<TokenStream>,
+    pub attrs: Vec<Attribute>,
+    pub vis: Visibility,
+    pub sig: Signature,
+    pub block: TokenStream,
 }
 
 impl Parse for TestFn {
     #[inline]
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // This parse implementation has been largely lifted from `syn`, with
-        // the exception of:
-        // * We don't have access to the plumbing necessary to parse inner
-        //   attributes in-place.
-        // * We do our own statements parsing to avoid recursively parsing
-        //   entire statements and only look for the parts we're interested in.
-
-        let outer_attrs = input.call(Attribute::parse_outer)?;
-        let vis: Visibility = input.parse()?;
-        let sig: Signature = input.parse()?;
-
-        let content;
-        let brace_token = braced!(content in input);
-        let inner_attrs = Attribute::parse_inner(&content)?;
-
-        let mut buf = TokenStream::new();
-        let mut stmts = Vec::new();
-
-        while !content.is_empty() {
-            if let Some(semi) = content.parse::<Option<syn::Token![;]>>()? {
-                semi.to_tokens(&mut buf);
-                stmts.push(buf);
-                buf = proc_macro2::TokenStream::new();
-                continue;
-            }
-
-            // Parse a single token tree and extend our current buffer with it.
-            // This avoids parsing the entire content of the sub-tree.
-            buf.extend([content.parse::<TokenTree>()?]);
-        }
-
-        if !buf.is_empty() {
-            stmts.push(buf);
-        }
-
+    fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
-            outer_attrs,
-            vis,
-            sig,
-            brace_token,
-            inner_attrs,
-            stmts,
+            attrs: input.call(Attribute::parse_outer)?,
+            vis: input.parse()?,
+            sig: input.parse()?,
+            block: input.parse()?,
         })
     }
 }
 
 impl ToTokens for TestFn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.outer_attrs
-            .iter()
-            .for_each(|attr| attr.to_tokens(tokens));
-        self.vis.to_tokens(tokens);
-        self.sig.to_tokens(tokens);
-        self.brace_token.surround(tokens, |tokens| {
-            self.stmts.iter().for_each(|s| s.to_tokens(tokens));
-        });
-    }
-}
-
-pub struct WrapFn {
-    test_fn: TestFn,
-    outer_sig: Signature,
-    call_expr: Expr,
-}
-
-impl WrapFn {
-    pub fn new(mut test_fn: TestFn) -> Result<Self> {
-        let fn_ident = &test_fn.sig.ident;
-        let mut outer_sig = test_fn.sig.clone();
-        outer_sig.inputs.clear();
-        let mut call_args: Punctuated<Expr, Token![,]> = Punctuated::new();
-        for arg in test_fn.sig.inputs.iter_mut() {
-            // FIXME: attrs not removed
-            let kind = arg.take_arg_kind()?;
-            if kind.copy_to_outer() {
-                outer_sig.inputs.push(arg.clone());
-            }
-
-            call_args.push(kind.into_call_arg());
-        }
-
-        let call_expr: ExprCall = parse_quote! {
-            #fn_ident ( #call_args )
-        };
-
-        Ok(Self {
-            test_fn,
-            outer_sig,
-            call_expr: Expr::Call(call_expr),
-        })
-    }
-}
-
-impl ToTokens for WrapFn {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self {
-            test_fn,
-            outer_sig,
-            call_expr,
+            attrs,
+            vis,
+            sig,
+            block,
         } = self;
-        tokens.extend(quote! {
-            #outer_sig {
-                #test_fn
-                #call_expr
-            }
-        });
+
+        attrs.iter().for_each(|attr| attr.to_tokens(tokens));
+        vis.to_tokens(tokens);
+        sig.to_tokens(tokens);
+        tokens.extend([block.clone()]);
     }
 }
 
-enum ArgKind {
-    Env(Ident),
-    TmpData(Ident),
-    Passthrough(Ident),
-    Receiver(Token![self]),
+pub struct WrappedFn {
+    test_fn: TestFn,
+    args: Args,
 }
 
-impl ArgKind {
-    fn copy_to_outer(&self) -> bool {
-        match self {
-            Self::Env(_) | Self::TmpData(_) => false,
-            Self::Passthrough(_) | Self::Receiver(_) => true,
-        }
-    }
-
-    fn into_call_arg(self) -> Expr {
-        match self {
-            Self::Env(ident) => {
-                let var = ident.to_string().to_uppercase();
-                parse_quote! { ::std::env::var(#var).expect("FIXME: errmsg") }
-            }
-            Self::TmpData(ident) => todo!(),
-            Self::Passthrough(ident) => parse_quote! { #ident },
-            Self::Receiver(_) => parse_quote! { self },
-        }
-    }
-}
-
-trait FnArgExt {
-    fn take_arg_kind(&mut self) -> Result<ArgKind>;
-}
-
-impl FnArgExt for FnArg {
-    fn take_arg_kind(&mut self) -> Result<ArgKind> {
-        match self {
-            FnArg::Typed(typed) => {
-                let param = typed.pat.require_ident()?.clone();
-                for attr in typed.attrs.iter() {
-                    if let Some(attr) = attr.path().get_ident() {
-                        // FIXME: remove the attr in these cases
-                        if attr == "env" {
-                            return Ok(ArgKind::Env(param));
-                        } else if attr == "tmp" {
-                            return Ok(ArgKind::TmpData(param));
-                        }
-                    }
-                }
-
-                return Ok(ArgKind::Passthrough(param));
-            }
-            FnArg::Receiver(recv) => Ok(ArgKind::Receiver(recv.self_token.clone())),
-        }
-    }
-}
-
-trait PatExt {
-    fn require_ident(&self) -> Result<&Ident>;
-}
-
-impl PatExt for Pat {
-    fn require_ident(&self) -> Result<&Ident> {
-        if let Self::Ident(ident) = self {
-            Ok(&ident.ident)
+impl WrappedFn {
+    pub fn wrap(test_fn: TestFn, args: Args) -> Result<Self> {
+        if test_fn.sig.inputs.len() == 1 {
+            Ok(Self { test_fn, args })
         } else {
             Err(Error::new_spanned(
-                self,
-                "Expected identifier, found pattern",
+                test_fn.sig.inputs,
+                "a with_fixture test function has to take one argument of type TestClient",
             ))
+        }
+    }
+}
+
+impl ToTokens for WrappedFn {
+    fn to_tokens(&self, _tokens: &mut TokenStream) {
+        unimplemented!()
+    }
+
+    fn into_token_stream(self) -> TokenStream
+    where
+        Self: Sized,
+    {
+        let Self { mut test_fn, args } = self;
+        let serial = args.serial_as_bool();
+
+        // Generate the wrapping fn
+        let mut wrapper_sig = test_fn.sig.clone();
+        wrapper_sig.generics = Default::default();
+        wrapper_sig.inputs = Default::default();
+        let wrapper_attrs = test_fn.attrs.clone();
+        test_fn.attrs = Default::default();
+        let test_fn_ident = &test_fn.sig.ident;
+        let wrapper_fn = TestFn {
+            attrs: wrapper_attrs,
+            vis: test_fn.vis.clone(),
+            sig: wrapper_sig,
+            block: quote! {{
+                #test_fn
+                let client = ::cargo_fixture::TestClient::connect(#serial)
+                    .await
+                    .expect("Could not connect to cargo fixture");
+                #test_fn_ident(client).await
+            }},
+        };
+
+        quote! {
+            #[cfg_attr(not(feature = "fixture"), ignore = "only ran under cargo fixture")]
+            #wrapper_fn
         }
     }
 }

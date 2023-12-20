@@ -1,53 +1,27 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, ToTokens};
-use syn::{parse_macro_input, Error, ItemFn, Token};
-use types::{TestFn, WrapFn};
+use quote::ToTokens;
+use syn::parse_macro_input;
+use types::{Args, TestFn, WrappedFn};
 
 mod types;
 
-/// FIXME: docs
-#[proc_macro_attribute]
-pub fn with_fixture(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let input = TokenStream2::from(input);
-    // let input = parse_macro_input!(input as TestFn);
-    // let wrapped = WrapFn::new(input)
-    //     .map(|w| w.into_token_stream())
-    //     .unwrap_or_else(Error::into_compile_error);
-
-    quote! {
-        #[cfg_attr(not(feature = "fixture"), ignore = "only run under cargo fixture")]
-        // #wrapped
-        #input
-    }
-    .into()
+macro_rules! tri {
+    ($what:expr) => {
+        match $what {
+            Ok(what) => what,
+            Err(err) => return proc_macro::TokenStream::from(err.to_compile_error()),
+        }
+    };
 }
 
-// TODO: rm
-/// Implementation detail of `cargo-fixture-lib`.
-#[doc(hidden)]
+/// FIXME: docs
 #[proc_macro_attribute]
-pub fn maybe_async(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let fun = parse_macro_input!(input as ItemFn);
-    if fun.sig.asyncness.is_some() {
-        return Error::new(
-            fun.sig.fn_token.span,
-            "fn with #[async_if] should be declared non-async",
-        )
-        .to_compile_error()
-        .into();
-    }
-
-    let mut fun_async = fun.clone();
-    fun_async.sig.asyncness = Some(Token![async](fun.sig.fn_token.span));
-
-    quote! {
-        #[cfg(any(feature = "smol", feature = "tokio"))]
-        #fun_async
-        #[cfg(not(any(feature = "smol", feature = "tokio")))]
-        #fun
-    }
-    .into()
+pub fn with_fixture(args: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args as Args);
+    let test_fn = parse_macro_input!(input as TestFn);
+    tri!(WrappedFn::wrap(test_fn, args))
+        .into_token_stream()
+        .into()
 }

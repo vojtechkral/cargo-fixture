@@ -14,8 +14,14 @@ async fn main() {
 
     let mut fixture = FixtureClient::connect().await.unwrap();
     fixture.set_env_var("FOO", "bar").await.unwrap();
-    fixture.set_value("abc", SharedData::new("foo")).await.unwrap();
-    fixture.set_extra_cargo_test_args(["--tests"]).await.unwrap();
+    fixture
+        .set_value("abc", SharedData::new("foo"))
+        .await
+        .unwrap();
+    fixture
+        .set_extra_cargo_test_args(["--tests"])
+        .await
+        .unwrap();
     // fixture.set_extra_test_binary_args(["--nocapture"]).await.unwrap();
     dbg!(fixture.ready().await.unwrap());
 }

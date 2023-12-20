@@ -36,7 +36,6 @@ async fn main() {
         // Setup schema and generate some test content in the DB
         generate_example_table(&uri).await;
 
-        eprintln!("DB URI: {uri}");
         fixture.set_env_var("POSTGRES_URI", uri).await.unwrap();
 
         // Tell the fixture we're ready to run tests.

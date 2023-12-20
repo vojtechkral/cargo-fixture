@@ -20,6 +20,8 @@ mod utils;
 // TODO: docs
 // TODO: ability to set -x from fixture (could be useful with project-defined Makefile/justfile etc.)
 // TODO: clippy
+// FIXME: target dir may not exist yet
+//   - split fixture build & run steps, build step before server spinup
 
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
@@ -33,7 +35,7 @@ fn main() -> Result<()> {
     logger::init(cli.log_level);
     let config = Config::new(cli)?;
 
-    info!("setting up...");
+    info!("setting up fixture...");  // FIXME: move
 
     let status = smol::block_on(serve(config))?;
     process::exit(status);
@@ -42,6 +44,7 @@ fn main() -> Result<()> {
 async fn serve(config: Config) -> Result<i32> {
     let ctrlc = CtrlC::new()?;
     let config = Arc::new(config);
+    // TODO: build fixture
     let mut server = smol::spawn(Server::new(config.clone(), ctrlc.clone())?.run()).fuse();
     let fixture = FixtureProcess::spawn(&config, ctrlc)?;
     let fixture_join = fixture.join().fuse();

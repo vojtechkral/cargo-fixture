@@ -47,7 +47,7 @@ impl Config {
         let mut cmd = Command::new(self.cargo_exe.clone());
         cmd.arg("test")
             .args(&self.cli.cargo_common_test)
-            .args(["--test", "fixture", "--"])
+            .args(["-q", "--test", "fixture", "--"])
             .args(&self.cli.fixture_args)
             .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
             .stdin(Stdio::null());

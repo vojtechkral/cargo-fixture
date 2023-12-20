@@ -1,10 +1,11 @@
-use std::{io, path::PathBuf};
+use std::{fmt, io, path::PathBuf};
 
+use strum::AsRefStr;
 use thiserror::Error;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(Error, Debug)]
+#[derive(Error, AsRefStr)]
 pub enum Error {
     #[error("cargo fixture socket serde error")]
     RpcSerde(#[source] serde_json::Error),
@@ -12,7 +13,7 @@ pub enum Error {
     #[error("cargo fixture socket I/O error")]
     RpcIo(#[source] io::Error),
 
-    #[error("Could not connect: CARGO_FIXTURE_SOCKET not set. cargo fixture not running?")]
+    #[error("Could not connect: CARGO_FIXTURE_SOCKET not set; cargo fixture not running?")]
     RpcNoEnvVar,
 
     #[error("Unexpected RPC response: {0:?}")]
@@ -47,5 +48,12 @@ impl Error {
 impl<T> From<Error> for Result<T> {
     fn from(err: Error) -> Self {
         Err(err)
+    }
+}
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let variant = self.as_ref();
+        write!(f, "{variant}: {self}")
     }
 }

@@ -18,6 +18,7 @@ mod utils;
 
 // TODO: tests
 // TODO: docs
+// TODO: ability to set -x from fixture (could be useful with project-defined Makefile/justfile etc.)
 
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 

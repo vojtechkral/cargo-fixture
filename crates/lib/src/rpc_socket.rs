@@ -94,6 +94,7 @@ impl Response {
     }
 }
 
+// TODO: use interior mutability? so that all uses don't have to be mut
 #[derive(Debug)]
 pub struct RpcSocket {
     socket: BufReader<UnixStream>,

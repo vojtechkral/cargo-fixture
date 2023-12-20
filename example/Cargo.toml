@@ -1,25 +1,22 @@
 [package]
 name = "cargo-fixture-example"
-version = "0.9.0" # TODO: ensure same version with binary
+version = "0.9.0"
 authors = ["Vojtech Kral"]
 description = "FIXME: descr"
 license = "Apache-2.0"
 edition = "2021"
 
-# TODO: ensure deps shared with binary have same versions
-
 [dependencies]
-# serde = { version = "1", features = ["derive"] }
-# serde_json = { version = "1", features = ["preserve_order"] }
-cargo-fixture-lib = { path = "../crates/lib", features = ["tokio"] }  # FIXME: from crates
+tokio = { version = "1.34.0", features = ["rt", "macros"] }
+tokio-postgres = "0.7.10"
 
 [features]
 fixture = []
 
 [dev-dependencies]
 dockertest = "0.4.0"
-sqlx = { version = "0.7.3", features = ["runtime-tokio", "postgres"] }
-tokio = { version = "1.34.0", features = ["rt", "macros"] }
+cargo-fixture-lib = { path = "../crates/lib", features = ["tokio"] }  # FIXME: from crates
+pretty_env_logger = "0.5.0"
 
 [[test]]
 name = "fixture"

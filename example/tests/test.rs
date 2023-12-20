@@ -1,25 +1,22 @@
 use std::env;
 
-use cargo_fixture::with_fixture;
-use sqlx::postgres::PgPoolOptions;
+use cargo_fixture::{with_fixture, TestClient};
 
+#[with_fixture(serial)]
 #[tokio::test]
-#[with_fixture]
-async fn postgres_connect_basic(#[env] postgres_uri: String) {
-    // async fn postgres_connect_basic() {
-    // let postgres_uri = env::var("POSTGRES_URI").unwrap();
-
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&postgres_uri)
+async fn postgres_connect_basic(mut _client: TestClient) {
+    let db_uri = env::var("POSTGRES_URI").unwrap();
+    let count = cargo_fixture_example::count_example_rows(&db_uri)
         .await
         .unwrap();
 
-    let (num,): (i64,) = sqlx::query_as("SELECT $1")
-        .bind(42_i64)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    assert_eq!(count, 10);
+}
 
-    assert_eq!(num, 42);
+#[test]
+fn some_other_test_no_fixture() {
+    // This test will run even when you do just `cargo test`,
+    // unlike the above test which will only run under `cargo fixture`.
+
+    assert_eq!(1 + 1, 2);
 }

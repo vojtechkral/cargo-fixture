@@ -11,7 +11,7 @@ use anyhow::Result;
 use log::debug;
 
 use self::cargo_meta::CargoMetadata;
-use crate::{cli::Cli, logger::LogLevel, FIXTURE_FEATURE, FIXTURE_TEST_NAME};
+use crate::{cli::Cli, logger::LogLevel, utils::CommandExt, FIXTURE_FEATURE, FIXTURE_TEST_NAME};
 
 #[derive(Debug)]
 pub struct Config {
@@ -46,18 +46,17 @@ impl Config {
     pub fn fixture_cmd(&self, run: bool) -> Command {
         let mut cmd = Command::new(self.cargo_exe.clone());
 
-        cmd.arg("test");
-        if run && self.cli.log_level < LogLevel::Debug {
-            cmd.arg("-q");
-        }
-        cmd.args(&self.cli.cargo_common_test)
-            .args(["--test", FIXTURE_TEST_NAME]);
-        if !run {
-            cmd.arg("--no-run");
-        }
-
-        cmd.arg("--")
-            .args(&self.cli.fixture_args)
+        cmd.arg("test")
+            .arg_if(run && self.cli.log_level < LogLevel::Debug, "-q")
+            .args(&self.cli.cargo_common_test)
+            .args(["--test", FIXTURE_TEST_NAME])
+            .arg_if(!run, "--no-run")
+            .args(["--features", FIXTURE_FEATURE])
+            .arg("--")
+            .args_if(
+                run && !self.cli.fixture_args.is_empty(),
+                &self.cli.fixture_args,
+            )
             .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
             .stdin(Stdio::null());
 

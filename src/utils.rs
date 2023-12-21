@@ -20,11 +20,36 @@ use smol::Timer;
 
 pub trait CommandExt {
     fn display<'a>(&'a self) -> CommandPrint<'a>;
+
+    fn arg_if(&mut self, condition: bool, arg: impl AsRef<OsStr>) -> &mut Self;
+
+    fn args_if<I, S>(&mut self, condition: bool, args: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>;
 }
 
 impl CommandExt for Command {
     fn display<'a>(&'a self) -> CommandPrint<'a> {
         CommandPrint(self)
+    }
+
+    fn arg_if(&mut self, condition: bool, arg: impl AsRef<OsStr>) -> &mut Self {
+        if condition {
+            self.arg(arg);
+        }
+        self
+    }
+
+    fn args_if<I, S>(&mut self, condition: bool, args: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        if condition {
+            self.args(args);
+        }
+        self
     }
 }
 

@@ -19,7 +19,7 @@ use pin_project_lite::pin_project;
 use smol::Timer;
 
 pub trait CommandExt {
-    fn display<'a>(&'a self) -> CommandPrint<'a>;
+    fn display(&self) -> CommandPrint<'_>;
 
     fn arg_if(&mut self, condition: bool, arg: impl AsRef<OsStr>) -> &mut Self;
 
@@ -30,7 +30,7 @@ pub trait CommandExt {
 }
 
 impl CommandExt for Command {
-    fn display<'a>(&'a self) -> CommandPrint<'a> {
+    fn display(&self) -> CommandPrint<'_> {
         CommandPrint(self)
     }
 
@@ -127,7 +127,7 @@ pub trait OsStrExt {
 
 impl<'a> OsStrExt for &'a OsStr {
     fn starts_with(&self, c: char) -> bool {
-        self.to_string_lossy().chars().next() == Some(c)
+        self.to_string_lossy().starts_with(c)
     }
 }
 

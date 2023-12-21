@@ -23,10 +23,18 @@ impl FlagDef {
 
     pub fn help_def(&self) -> String {
         let mut res = String::new();
-        self.short.map(|s| res.push_strs(&["-", s]));
-        self.short.and(self.long).map(|_| res.push_str(", "));
-        self.long.map(|l| res.push_strs(&["--", l]));
-        self.meta.map(|m| res.push_strs(&[" <", m, ">"]));
+        if let Some(s) = self.short {
+            res.push_strs(&["-", s])
+        }
+        if self.short.and(self.long).is_some() {
+            res.push_str(", ")
+        }
+        if let Some(l) = self.long {
+            res.push_strs(&["--", l])
+        }
+        if let Some(m) = self.meta {
+            res.push_strs(&[" <", m, ">"])
+        }
         res
     }
 }
@@ -62,6 +70,7 @@ macro_rules! def_flags {
         , $($tt:tt)*
     ) => {
         def_flags!(@flag $output [$($acc,)*
+            #[allow(clippy::needless_update)]
             $crate::cli::flags::FlagDef {
                 $( short: Some(stringify!($short)), )?
                 $( long: Some(concat!(stringify!($long) $(, "-", stringify!($long2) $(, "-", stringify!($long3))?)?)), )?

@@ -34,7 +34,7 @@ impl Config {
         let target_dir = metadata.target_dir().clone();
         debug!("target dir: {}", target_dir.display());
         let pid = process::id();
-        let socket_path = target_dir.join(&format!(".cargo-fixture-{pid}.sock"));
+        let socket_path = target_dir.join(format!(".cargo-fixture-{pid}.sock"));
 
         Ok(Self {
             cli,

@@ -31,7 +31,7 @@ pub enum Error {
     MissingValue(String),
 
     #[error("Error parsing value for flag {flag}")]
-    ParseError {
+    ValueNotParsed {
         flag: String,
         error: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -55,8 +55,7 @@ impl Error {
         let bytes = os.to_raw_bytes();
         let escaped = bytes
             .iter()
-            .map(|&b| ascii::escape_default(b))
-            .flatten()
+            .flat_map(|&b| ascii::escape_default(b))
             .map(|b| char::from_u32(b as _).unwrap())
             .collect::<String>();
 
@@ -83,7 +82,7 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     fn parser_error(self, flag: impl Into<String>) -> Result<T> {
-        self.map_err(|err| Error::ParseError {
+        self.map_err(|err| Error::ValueNotParsed {
             flag: flag.into(),
             error: Box::new(err),
         })
@@ -413,7 +412,7 @@ impl Parser {
 
         if !has_eq_value {
             let value = self.get_value_raw()?;
-            field(&mut self.cli).push(value.into());
+            field(&mut self.cli).push(value);
         }
 
         Ok(())

@@ -18,7 +18,6 @@ mod utils;
 // TODO: tests
 // TODO: docs
 // TODO: ability to set -x from fixture (could be useful with project-defined Makefile/justfile etc.)
-// TODO: clippy
 
 const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
 const FIXTURE_TEST_NAME: &str = "fixture";

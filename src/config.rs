@@ -11,7 +11,7 @@ use anyhow::Result;
 use log::debug;
 
 use self::cargo_meta::CargoMetadata;
-use crate::{cli::Cli, logger::LogLevel};
+use crate::{cli::Cli, logger::LogLevel, FIXTURE_FEATURE, FIXTURE_TEST_NAME};
 
 #[derive(Debug)]
 pub struct Config {
@@ -51,7 +51,7 @@ impl Config {
             cmd.arg("-q");
         }
         cmd.args(&self.cli.cargo_common_test)
-            .args(["--test", "fixture"]);
+            .args(["--test", FIXTURE_TEST_NAME]);
         if !run {
             cmd.arg("--no-run");
         }
@@ -76,7 +76,7 @@ impl Config {
         } else {
             let mut cmd = Command::new(self.cargo_exe.clone());
             // NB. --features is additive
-            cmd.args(["test", "--features", "fixture"]);
+            cmd.args(["test", "--features", FIXTURE_FEATURE]);
 
             cmd.args(&self.cli.cargo_common_all)
                 .args(extra_test_args)

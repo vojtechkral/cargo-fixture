@@ -19,8 +19,10 @@ mod utils;
 // TODO: docs
 // TODO: ability to set -x from fixture (could be useful with project-defined Makefile/justfile etc.)
 // TODO: clippy
-// TODO: rename fixture feature as _fixture (docs.rs hides those)
+// FIXME: build fixture prog with fixture feature
 
+const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
+const FIXTURE_TEST_NAME: &str = "fixture";
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {

@@ -123,7 +123,7 @@ impl ToTokens for WrappedFn {
         };
 
         quote! {
-            #[cfg_attr(not(feature = "fixture"), ignore = "only ran under cargo fixture")]
+            #[cfg_attr(not(feature = "_fixture"), ignore = "only ran under cargo fixture")]
             #wrapper_fn
         }
     }

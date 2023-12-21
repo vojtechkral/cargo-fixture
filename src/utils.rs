@@ -1,19 +1,22 @@
 use std::{
     ffi::OsStr,
-    fmt, fs,
+    fmt::{self, Display},
+    fs,
     path::Path,
     pin::Pin,
     process::{Command, ExitStatus},
     task,
+    time::Duration,
 };
 
 use anyhow::{anyhow, bail, Context as _, Ok, Result};
 use futures_util::{
     future::{FusedFuture, Shared},
-    pin_mut, select, Future, FutureExt,
+    pin_mut, select, select_biased, Future, FutureExt,
 };
 use log::{log, warn, Level};
 use pin_project_lite::pin_project;
+use smol::Timer;
 
 pub trait CommandExt {
     fn display<'a>(&'a self) -> CommandPrint<'a>;
@@ -63,15 +66,22 @@ where
 }
 
 pub trait ExitStatusExt {
-    fn as_result(&self, context: &str) -> Result<()>;
+    fn as_result<F, E>(&self, context: F) -> Result<()>
+    where
+        F: FnOnce() -> E,
+        E: Display;
 }
 
 impl ExitStatusExt for ExitStatus {
-    fn as_result(&self, context: &str) -> Result<()> {
+    fn as_result<F, E>(&self, context: F) -> Result<()>
+    where
+        F: FnOnce() -> E,
+        E: Display,
+    {
         match self.code() {
             Some(0) => Ok(()),
-            Some(c) => bail!("{context}: exit code: {c}"),
-            None => bail!("{context}: killed by a signal"),
+            Some(c) => bail!("{}: exit code: {c}", context()),
+            None => bail!("{}: killed by a signal", context()),
         }
     }
 }
@@ -141,5 +151,16 @@ impl Future for CtrlC {
 impl FusedFuture for CtrlC {
     fn is_terminated(&self) -> bool {
         self.inner.is_terminated()
+    }
+}
+
+pub async fn timeout<F>(mut f: F, timeout: Duration) -> Option<F::Output>
+where
+    F: Future + FusedFuture + Unpin,
+{
+    let mut timer = Timer::after(timeout).fuse();
+    select_biased! {
+        _ = timer => None,
+        res = f => Some(res)
     }
 }

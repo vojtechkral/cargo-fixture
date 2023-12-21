@@ -1,4 +1,4 @@
-use std::{env, process, sync::Arc};
+use std::{env, process, sync::Arc, time::Duration};
 
 use anyhow::{bail, Result};
 use fixture_process::FixtureProcess;
@@ -6,7 +6,7 @@ use futures_util::{pin_mut, select, FutureExt};
 use server::Server;
 use utils::CtrlC;
 
-use crate::config::Config;
+use crate::{config::Config, utils::timeout};
 
 mod cli;
 mod config;
@@ -19,6 +19,7 @@ mod utils;
 // TODO: docs
 // TODO: ability to set -x from fixture (could be useful with project-defined Makefile/justfile etc.)
 // TODO: clippy
+// TODO: rename fixture feature as _fixture (docs.rs hides those)
 
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
@@ -51,12 +52,24 @@ async fn serve(config: Config) -> Result<i32> {
     // Run fixture program
     let fixture = FixtureProcess::spawn_run(&config, ctrlc)?;
     let fixture_join = fixture.join().fuse();
+    pin_mut!(fixture_join);
 
     // Wait for them to finish
-    pin_mut!(fixture_join);
+    // We observe both futures, but ultimately the server's result
+    // is returned, though fixture errors are printed as well.
     select! {
-        res = server => return res,
-        res = fixture_join => res?,
+        res = fixture_join => {
+            if let Err(err) = res {
+                eprintln!("Error: {err:?}");
+            }
+            server.await
+        },
+        res = server => {
+            // Give the fixture process a bit of time to exit as well
+            if let Some(Err(err)) = timeout(fixture_join, Duration::from_millis(250)).await {
+                eprintln!("Error: {err:?}");
+            }
+            res
+        },
     }
-    server.await
 }

@@ -31,7 +31,9 @@ impl CargoMetadata {
             .output()
             .context("Could not run `cargo metadata`")
             .and_then(|output| {
-                output.status.as_result("cargo metadata command failed")?;
+                output
+                    .status
+                    .as_result(|| "cargo metadata command failed")?;
                 Ok(output)
             })?;
 

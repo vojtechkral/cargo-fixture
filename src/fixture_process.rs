@@ -11,6 +11,7 @@ use crate::{
 pub struct FixtureProcess {
     child: Child,
     ctrlc: CtrlC,
+    verb: &'static str,
 }
 
 impl FixtureProcess {
@@ -31,15 +32,16 @@ impl FixtureProcess {
         debug!("running {}", fixture_cmd.display());
         let child = SmolCommand::from(fixture_cmd)
             .spawn()
-            .context("Error launching fixture")?;
+            .context("error launching fixture")?;
+        let verb = if run { "running" } else { "building" };
 
-        Ok(Self { child, ctrlc })
+        Ok(Self { child, ctrlc, verb })
     }
 
     pub async fn join(mut self) -> Result<()> {
-        let err_context = "fixture program failed";
+        let err_context = || format!("{} fixture program failed", self.verb);
         let status = self.child.status().map(|res| {
-            res.context(err_context)
+            res.with_context(err_context)
                 .and_then(|s| s.as_result(err_context))
         });
         self.ctrlc.interruptible(status).await

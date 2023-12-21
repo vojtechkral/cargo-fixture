@@ -125,8 +125,7 @@ impl FixtureConnection {
     async fn run(mut self) -> Result<i32> {
         loop {
             let Some(req) = self.socket.recv().await? else {
-                warn!("fixture program never called .ready(), tests not run");
-                return Ok(0);
+                bail!("fixture program never called .ready(), tests not run");
             };
             let resp = match req {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),

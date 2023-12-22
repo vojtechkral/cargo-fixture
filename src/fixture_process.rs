@@ -25,15 +25,13 @@ impl FixtureProcess {
         Self::spawn(config, ctrlc, true)
     }
 
-    // FIXME: err msgs when building
-
     fn spawn(config: &Config, ctrlc: CtrlC, run: bool) -> Result<Self> {
         let fixture_cmd = config.fixture_cmd(run);
+        let verb = if run { "running" } else { "building" };
         debug!("running {}", fixture_cmd.display());
         let child = SmolCommand::from(fixture_cmd)
             .spawn()
-            .context("error launching fixture")?;
-        let verb = if run { "running" } else { "building" };
+            .with_context(|| format!("error {verb} fixture program"))?;
 
         Ok(Self { child, ctrlc, verb })
     }

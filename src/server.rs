@@ -107,6 +107,7 @@ struct FixtureConnection {
     kv_store: KvStore,
     extra_test_args: Vec<String>,
     extra_harness_args: Vec<String>,
+    replace_exec: Vec<String>,
     return_status: Option<i32>,
 }
 
@@ -118,6 +119,7 @@ impl FixtureConnection {
             kv_store,
             extra_test_args: vec![],
             extra_harness_args: vec![],
+            replace_exec: vec![],
             return_status: None,
         }
     }
@@ -133,6 +135,7 @@ impl FixtureConnection {
                 Request::GetKeyValue { key } => self.handle_get_key_value(key),
                 Request::SetExtraTestArgs { args } => self.handle_set_extra_test_args(args),
                 Request::SetExtraHarnessArgs { args } => self.handle_set_extra_harness_args(args),
+                Request::SetExec { exec } => self.handle_set_exec(exec),
                 Request::Ready => self.handle_ready().await,
                 hello @ Request::Hello { .. } => bail!("Unexpected Hello message: {hello:?}"),
             };
@@ -174,6 +177,16 @@ impl FixtureConnection {
         Response::Ok
     }
 
+    fn handle_set_exec(&mut self, exec: Vec<String>) -> Response {
+        if exec.is_empty() {
+            debug!("resetting test command to default cargo test invocation");
+        } else {
+            debug!("setting test command to {exec:?}");
+        }
+        self.replace_exec = exec;
+        Response::Ok
+    }
+
     async fn handle_ready(&mut self) -> Response {
         let success = self.run_tests().await;
         Response::TestsFinished { success }
@@ -182,7 +195,10 @@ impl FixtureConnection {
     async fn run_tests(&mut self) -> bool {
         let extra_test_args = mem::take(&mut self.extra_test_args);
         let extra_harness_args = mem::take(&mut self.extra_harness_args);
-        let test_cmd = self.config.test_cmd(extra_test_args, extra_harness_args);
+        let replace_exec = mem::take(&mut self.replace_exec);
+        let test_cmd = self
+            .config
+            .test_cmd(extra_test_args, extra_harness_args, replace_exec);
         info!("running {}", test_cmd.display());
         let mut test_cmd = SmolCommand::from(test_cmd);
         test_cmd

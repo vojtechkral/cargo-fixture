@@ -55,6 +55,9 @@ pub enum Request {
     SetExtraHarnessArgs {
         args: Vec<String>,
     },
+    SetExec {
+        exec: Vec<String>,
+    },
     Ready,
 }
 

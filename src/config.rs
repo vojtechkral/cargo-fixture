@@ -67,10 +67,15 @@ impl Config {
         &self,
         extra_test_args: Vec<String>,
         extra_harness_args: Vec<String>,
+        replace_exec: Vec<String>,
     ) -> Command {
         let mut cmd = if let Some(exec) = self.cli.exec.get(0) {
             let mut cmd = Command::new(exec);
             cmd.args(&self.cli.exec[1..]);
+            cmd
+        } else if let Some(exec) = replace_exec.get(0) {
+            let mut cmd = Command::new(exec);
+            cmd.args(&replace_exec[1..]);
             cmd
         } else {
             let mut cmd = Command::new(self.cargo_exe.clone());

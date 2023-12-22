@@ -58,6 +58,16 @@ impl FixtureClient {
         self.socket.call(req).await?.as_ok()
     }
 
+    pub async fn set_exec(
+        &mut self,
+        exec: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Result<()> {
+        let req = Request::SetExec {
+            exec: exec.into_iter().map(Into::into).collect::<Vec<_>>(),
+        };
+        self.socket.call(req).await?.as_ok()
+    }
+
     pub async fn ready(&mut self) -> Result<bool> {
         self.socket.call(Request::Ready).await?.as_tests_finished()
     }

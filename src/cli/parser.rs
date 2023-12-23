@@ -1,11 +1,11 @@
 use std::{
-    ascii,
     collections::{HashMap, VecDeque},
     ffi::OsString,
     mem,
     str::FromStr,
 };
 
+use anyhow::{anyhow, Context};
 use os_str_bytes::RawOsStr;
 use tabular::{row, Table};
 use thiserror::Error;
@@ -13,31 +13,17 @@ use thiserror::Error;
 use super::{flags::FlagDef, Cli};
 use crate::utils::OsStrExt as _;
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-pub type ParseFn = dyn Fn(&mut Parser) -> Result<()> + Send + Sync + 'static;
+pub type ParseResult<T> = std::result::Result<T, Error>;
+pub type ParseFn = dyn Fn(&mut Parser) -> ParseResult<()> + Send + Sync + 'static;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Flag not convertible to unicode: {0}")]
-    NonUnicodeFlag(String),
-
-    #[error("Unrecognized flag: {0}")]
-    UnrecognizedFlag(String),
-
-    #[error("Flag {0} doesn't expect a value")]
-    UnexpectedValue(String),
-
-    #[error("Flag {0} requires a value")]
-    MissingValue(String),
-
-    #[error("Error parsing value for flag {flag}")]
-    ValueNotParsed {
-        flag: String,
-        error: Box<dyn std::error::Error + Send + Sync>,
-    },
+    #[error(transparent)]
+    Parsing(anyhow::Error),
 
     #[error("{0}")]
     Help(String),
+
     #[error("{0}")]
     Version(String),
 }
@@ -49,87 +35,71 @@ impl Error {
             _ => 1,
         }
     }
-
-    fn non_unicode_flag(os: OsString) -> Self {
-        let os = RawOsStr::new(os.as_os_str());
-        let bytes = os.to_raw_bytes();
-        let escaped = bytes
-            .iter()
-            .flat_map(|&b| ascii::escape_default(b))
-            .map(|b| char::from_u32(b as _).unwrap())
-            .collect::<String>();
-
-        Self::NonUnicodeFlag(escaped)
-    }
 }
 
-trait OptionExt<T> {
-    fn or_unrecognized_flag(self, flag: impl Into<String>) -> Result<T>;
+macro_rules! error {
+    ( $($tt:tt)+ ) => {
+        Error::Parsing(anyhow!($($tt)+))
+    };
 }
 
-impl<T> OptionExt<T> for Option<T> {
-    fn or_unrecognized_flag(self, flag: impl Into<String>) -> Result<T> {
-        self.ok_or_else(|| Error::UnrecognizedFlag(flag.into()))
-    }
-}
-
-trait ResultExt<T, E> {
-    fn parser_error(self, flag: impl Into<String>) -> Result<T>;
-}
-
-impl<T, E> ResultExt<T, E> for Result<T, E>
-where
-    E: std::error::Error + Send + Sync + 'static,
-{
-    fn parser_error(self, flag: impl Into<String>) -> Result<T> {
-        self.map_err(|err| Error::ValueNotParsed {
-            flag: flag.into(),
-            error: Box::new(err),
-        })
-    }
+macro_rules! bail {
+    ( $($tt:tt)+ ) => {
+        return Err(Error::Parsing(anyhow!($($tt)+)))
+    };
 }
 
 #[derive(Debug)]
 struct RawFlag {
     short: bool,
-    name: String,
+    flag: String, // includes the -/-- prefix
     eq_value: Option<OsString>,
 }
 
 impl RawFlag {
-    fn long(name: impl Into<String>, eq_value: Option<OsString>) -> Self {
+    /// `flag` is expected to include the -- prefix
+    fn long(flag: impl Into<String>, eq_value: Option<OsString>) -> Self {
         Self {
             short: false,
-            name: name.into(),
+            flag: flag.into(),
             eq_value,
         }
     }
-    fn short(name: impl Into<String>, eq_value: Option<OsString>) -> Self {
+
+    fn short(name: char, eq_value: Option<OsString>) -> Self {
         Self {
             short: true,
-            name: name.into(),
+            flag: format!("-{name}"),
             eq_value,
         }
     }
+
     fn empty() -> Self {
         Self {
             short: false,
-            name: String::new(),
+            flag: String::new(),
             eq_value: None,
+        }
+    }
+
+    fn name(&self) -> &str {
+        if self.short {
+            &self.flag[1..]
+        } else {
+            &self.flag[2..]
         }
     }
 }
 
 impl From<RawFlag> for OsString {
     fn from(this: RawFlag) -> Self {
-        let dashes = if this.short { "-" } else { "--" };
-        let name = this.name;
         if let Some(eq_value) = this.eq_value {
-            let mut os = OsString::from(format!("{dashes}{name}="));
+            let mut os = OsString::from(this.flag);
+            os.push("-");
             os.push(eq_value);
             os
         } else {
-            OsString::from(format!("{dashes}{name}"))
+            OsString::from(this.flag)
         }
     }
 }
@@ -214,10 +184,7 @@ where
             if flag.starts_with("--") {
                 // Long flag
                 // This also takes stuff like ---foo or --- but that's ok
-                deq.push_back(NormalizedArg::Flag(RawFlag::long(
-                    flag.strip_prefix("--").unwrap(),
-                    eq_value,
-                )));
+                deq.push_back(NormalizedArg::Flag(RawFlag::long(flag, eq_value)));
                 return deq;
             }
 
@@ -288,7 +255,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(mut self) -> Result<Cli> {
+    pub fn parse(mut self) -> ParseResult<Cli> {
         while let Some(arg) = self.args.pop_front() {
             let flag = match arg {
                 NormalizedArg::Prog(_) => continue,
@@ -298,7 +265,9 @@ impl Parser {
                     continue;
                 }
                 NormalizedArg::Flag(flag) => flag,
-                NormalizedArg::BadFlag(os) => return Err(Error::non_unicode_flag(os)),
+                NormalizedArg::BadFlag(os) => {
+                    bail!("Flag not convertible to unicode: {}", os.to_escaped())
+                }
                 NormalizedArg::Positional(arg) => {
                     if !self.delimiter_found {
                         self.cli.cargo_test_args.push(arg);
@@ -319,15 +288,15 @@ impl Parser {
                 &self.longs
             };
             let flag_def = def_map
-                .get(flag.name.as_str())
-                .or_unrecognized_flag(&flag.name)?;
+                .get(flag.name())
+                .ok_or_else(|| error!("Unrecognized flag: {}", flag.flag))?;
 
             self.current_flag = flag;
             self.current_flag_def = flag_def;
             (flag_def.parse_fn)(&mut self)?;
 
             if self.current_flag.eq_value.is_some() {
-                return Err(Error::UnexpectedValue(self.take_current_flag().name));
+                bail!("Unrecognized flag: {}", self.take_current_flag().flag);
             }
         }
 
@@ -339,10 +308,10 @@ impl Parser {
     }
 
     fn missing_value_error(&mut self) -> Error {
-        Error::MissingValue(self.take_current_flag().name)
+        error!("Flag {} requires a value", self.take_current_flag().flag)
     }
 
-    fn get_value(&mut self) -> Result<OsString> {
+    fn get_value(&mut self) -> ParseResult<OsString> {
         let value = self.get_value_raw()?;
         if value.as_os_str().starts_with('-') {
             Err(self.missing_value_error())
@@ -351,7 +320,7 @@ impl Parser {
         }
     }
 
-    fn get_value_raw(&mut self) -> Result<OsString> {
+    fn get_value_raw(&mut self) -> ParseResult<OsString> {
         if let Some(value) = self.current_flag.eq_value.take() {
             return Ok(value);
         }
@@ -367,18 +336,29 @@ impl Parser {
 
     // flag parse fns
 
-    pub fn parse_value<T>(&mut self, field: impl Fn(&mut Cli) -> &mut T) -> Result<()>
+    pub fn parse_value<T>(&mut self, field: impl Fn(&mut Cli) -> &mut T) -> ParseResult<()>
     where
         T: FromStr,
         <T as FromStr>::Err: std::error::Error + Send + Sync + 'static,
     {
         let value = self.get_value()?;
-        let value = value
-            .to_str()
-            .or_unrecognized_flag(self.take_current_flag().name)?;
+        let value = value.into_string().map_err(|value| {
+            error!(
+                "Non-unicode value could not be parsed: {} {}",
+                self.take_current_flag().flag,
+                value.to_escaped()
+            )
+        })?;
         let value = value
             .parse::<T>()
-            .parser_error(self.take_current_flag().name)?;
+            .with_context(|| {
+                format!(
+                    "Error parsing value for flag: {} {}",
+                    self.take_current_flag().flag,
+                    value
+                )
+            })
+            .map_err(Error::Parsing)?;
         *field(&mut self.cli) = value;
         Ok(())
     }
@@ -386,26 +366,36 @@ impl Parser {
     pub fn append_value_raw(
         &mut self,
         field: impl Fn(&mut Cli) -> &mut Vec<OsString>,
-    ) -> Result<()> {
+    ) -> ParseResult<()> {
         let value = self.get_value_raw()?;
         let field = field(&mut self.cli);
         field.push(value);
         Ok(())
     }
 
-    pub fn take_remaining(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Result<()> {
+    pub fn take_remaining(
+        &mut self,
+        field: impl Fn(&mut Cli) -> &mut Vec<OsString>,
+    ) -> ParseResult<()> {
         let field = field(&mut self.cli);
-        field.extend(self.args.drain(..).map(OsString::from));
-        Ok(())
+        if self.args.is_empty() {
+            Err(self.missing_value_error())
+        } else {
+            field.extend(self.args.drain(..).map(OsString::from));
+            Ok(())
+        }
     }
 
-    pub fn forward(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Result<()> {
+    pub fn forward(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> ParseResult<()> {
         let flag = self.take_current_flag();
         field(&mut self.cli).push(flag.into());
         Ok(())
     }
 
-    pub fn forward_value(&mut self, field: impl Fn(&mut Cli) -> &mut Vec<OsString>) -> Result<()> {
+    pub fn forward_value(
+        &mut self,
+        field: impl Fn(&mut Cli) -> &mut Vec<OsString>,
+    ) -> ParseResult<()> {
         let flag = self.take_current_flag();
         let has_eq_value = flag.eq_value.is_some();
         field(&mut self.cli).push(flag.into());
@@ -418,11 +408,11 @@ impl Parser {
         Ok(())
     }
 
-    pub fn help(&mut self) -> Result<()> {
+    pub fn help(&mut self) -> ParseResult<()> {
         Err(Error::Help(self.build_help()))
     }
 
-    pub fn version(&mut self) -> Result<()> {
+    pub fn version(&mut self) -> ParseResult<()> {
         let ver = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         Err(Error::Version(ver))
     }

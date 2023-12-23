@@ -17,8 +17,6 @@ mod utils;
 
 // TODO: tests
 // TODO: docs
-// TODO: -x (no args) is a no-op
-// FIXME: CARGO_FIXTURE_SOCKET not set for -x
 
 const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
 const FIXTURE_TEST_NAME: &str = "fixture";

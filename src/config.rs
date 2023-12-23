@@ -86,13 +86,15 @@ impl Config {
                 .args(extra_test_args)
                 .arg("--")
                 .args(&self.cli.harness_args)
-                .args(extra_harness_args)
-                .env("CARGO_FIXTURE_SOCKET", &self.socket_path);
+                .args(extra_harness_args);
             cmd
         };
-        cmd.stdin(Stdio::inherit())
+
+        cmd.env("CARGO_FIXTURE_SOCKET", &self.socket_path)
+            .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
+
         cmd
     }
 }

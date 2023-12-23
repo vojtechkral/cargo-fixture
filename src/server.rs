@@ -180,6 +180,8 @@ impl FixtureConnection {
     fn handle_set_exec(&mut self, exec: Vec<String>) -> Response {
         if exec.is_empty() {
             debug!("resetting test command to default cargo test invocation");
+        } else if !self.config.cli.exec.is_empty() {
+            debug!("attempt to set test command to {exec:?} from fixture, but this is overriden by CLI flag -x");
         } else {
             debug!("setting test command to {exec:?}");
         }

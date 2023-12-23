@@ -1,7 +1,8 @@
 use std::{
+    ascii,
     ffi::OsStr,
     fmt::{self, Display},
-    fs,
+    fs, ops,
     path::Path,
     pin::Pin,
     process::{Command, ExitStatus},
@@ -15,6 +16,7 @@ use futures_util::{
     pin_mut, select, select_biased, Future, FutureExt,
 };
 use log::{log, warn, Level};
+use os_str_bytes::RawOsStr;
 use pin_project_lite::pin_project;
 use smol::Timer;
 
@@ -123,11 +125,25 @@ impl StringExt for String {
 
 pub trait OsStrExt {
     fn starts_with(&self, c: char) -> bool;
+    fn to_escaped(&self) -> String;
 }
 
-impl<'a> OsStrExt for &'a OsStr {
+impl<T> OsStrExt for T
+where
+    T: ops::Deref<Target = OsStr>,
+{
     fn starts_with(&self, c: char) -> bool {
         self.to_string_lossy().starts_with(c)
+    }
+
+    fn to_escaped(&self) -> String {
+        let os = RawOsStr::new(self);
+        let bytes = os.to_raw_bytes();
+        bytes
+            .iter()
+            .flat_map(|&b| ascii::escape_default(b))
+            .map(|b| char::from_u32(b as _).unwrap())
+            .collect::<String>()
     }
 }
 

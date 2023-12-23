@@ -1,7 +1,5 @@
 //! FIXME: doc-comment
 
-// TODO: tracing?
-
 use std::{env, path::PathBuf};
 
 use log::trace;

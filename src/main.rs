@@ -17,7 +17,6 @@ mod utils;
 
 // TODO: tests
 // TODO: docs
-// TODO: use serde-value for in-memory KV store, print when tracing?
 
 const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";

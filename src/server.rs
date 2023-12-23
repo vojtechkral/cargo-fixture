@@ -6,12 +6,11 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-
 use futures_util::{pin_mut, select, FutureExt, StreamExt as _};
 use log::{debug, info, warn};
+use smol::{process::Command as SmolCommand, Task, Timer};
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
-use smol::{process::Command as SmolCommand, Task, Timer};
 
 use crate::{
     config::Config,
@@ -207,6 +206,8 @@ impl FixtureConnection {
     }
 
     async fn run_tests(&mut self) -> bool {
+        // TODO: Dump KV when tracin?
+
         let extra_test_args = mem::take(&mut self.extra_test_args);
         let extra_harness_args = mem::take(&mut self.extra_harness_args);
         let replace_exec = mem::take(&mut self.replace_exec);

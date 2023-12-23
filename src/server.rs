@@ -2,15 +2,16 @@ use std::{
     collections::HashMap,
     env, mem,
     sync::{Arc, Mutex, RwLock},
+    time::{Duration, Instant},
 };
 
 use anyhow::{bail, Context, Result};
 
-use futures_util::{pin_mut, select, FutureExt};
+use futures_util::{pin_mut, select, FutureExt, StreamExt as _};
 use log::{debug, info, warn};
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
-use smol::{process::Command as SmolCommand, Task};
+use smol::{process::Command as SmolCommand, Task, Timer};
 
 use crate::{
     config::Config,
@@ -43,11 +44,13 @@ impl Server {
     }
 
     pub async fn run(mut self) -> Result<i32> {
+        let timer = smol::spawn(Self::watcher());
         let (socket, conn_type) = self
             .ctrlc
             .interruptible(self.socket.accept())
             .await
             .context("Fixture connection error")?;
+        timer.cancel().await;
         if conn_type != ConnectionType::Fixture {
             bail!("Unexpected connection {conn_type:?}, expected fixture connection first");
         }
@@ -64,6 +67,15 @@ impl Server {
                 res = fixture => return res,
                 res = ctrlc => res?,
             }
+        }
+    }
+
+    async fn watcher() {
+        let start = Instant::now();
+        let mut timer = Timer::interval(Duration::from_secs(10));
+        while timer.next().await.is_some() {
+            let delta = start.elapsed().as_secs();
+            warn!("fixture process has been running for {delta}s but has not connected yet");
         }
     }
 

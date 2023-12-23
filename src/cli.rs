@@ -9,21 +9,11 @@ use flags::def_flags;
 mod parser;
 use parser::Parser;
 
-#[derive(Default, Debug)]
-pub struct Cli {
-    pub log_level: LogLevel,
-    pub fixture_args: Vec<OsString>,
-    pub exec: Vec<OsString>,
-    pub cargo_common_all: Vec<OsString>,
-    pub cargo_common_test: Vec<OsString>,
-    pub cargo_test_args: Vec<OsString>,
-    pub harness_args: Vec<OsString>,
-}
-
 def_flags!(
     FLAGS:
 
-    -A                    append_value_raw(fixture_args) "Pass an argument to the fixture test binary (can be used multiple times)",
+    --fixture             parse_value(fixture_name) r#"Name of the fixture setup test (default: "fixture")"#,
+    -A --arg              append_value_raw(fixture_args) "Pass an argument to the fixture test binary (can be used multiple times)",
     -x --exec [Args...]   take_remaining(exec) "Instead of running cargo test [args...], run the specified command and pass it all remaining arguments",
     -L                    parse_value(log_level) "Stderr logging level (choices: off, info, debug, trace, default: info)",
     -h --help             help "Print help",
@@ -59,6 +49,33 @@ def_flags!(
     --unit-graph             forward(cargo_common_test),
     --timings [FORMATS]      forward_value(cargo_common_test),
 );
+
+#[derive(Debug)]
+pub struct Cli {
+    pub fixture_name: String,
+    pub fixture_args: Vec<OsString>,
+    pub exec: Vec<OsString>,
+    pub log_level: LogLevel,
+    pub cargo_common_all: Vec<OsString>,
+    pub cargo_common_test: Vec<OsString>,
+    pub cargo_test_args: Vec<OsString>,
+    pub harness_args: Vec<OsString>,
+}
+
+impl Default for Cli {
+    fn default() -> Self {
+        Self {
+            fixture_name: "fixture".to_string(),
+            fixture_args: vec![],
+            exec: vec![],
+            log_level: LogLevel::default(),
+            cargo_common_all: vec![],
+            cargo_common_test: vec![],
+            cargo_test_args: vec![],
+            harness_args: vec![],
+        }
+    }
+}
 
 pub fn parse() -> Result<Cli> {
     Parser::new(FLAGS, CARGO_FLAGS, env::args_os())

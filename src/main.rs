@@ -17,9 +17,9 @@ mod utils;
 
 // TODO: tests
 // TODO: docs
+// FIXME: cargo.toml error -> opaque cargo metadata error
 
 const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
-const FIXTURE_TEST_NAME: &str = "fixture";
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";
 
 fn main() -> Result<()> {

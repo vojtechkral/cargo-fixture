@@ -17,7 +17,7 @@ mod utils;
 
 // TODO: tests
 // TODO: docs
-// FIXME: cargo.toml error -> opaque cargo metadata error
+// TODO: use serde-value for in-memory KV store, print when tracing?
 
 const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
 const ENV_CARGO_FIXTURE: &str = "CARGO_FIXTURE";

@@ -1,5 +1,6 @@
 use std::{
     ffi::OsStr,
+    io::{self, Write as _},
     path::{Path, PathBuf},
     process::Command,
 };
@@ -29,13 +30,13 @@ impl CargoMetadata {
             .args(flags)
             .args(["--format-version", "1", "--no-deps"])
             .output()
-            .context("Could not run `cargo metadata`")
-            .and_then(|output| {
-                output
-                    .status
-                    .as_result(|| "cargo metadata command failed")?;
-                Ok(output)
-            })?;
+            .context("Could not run `cargo metadata`")?;
+
+        let status = output.status.as_result(|| "cargo metadata command failed");
+        if status.is_err() {
+            let _ = io::stderr().write_all(&output.stderr);
+            status?
+        }
 
         trace!(
             "cargo metadata: {}",

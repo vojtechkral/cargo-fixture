@@ -1,14 +1,37 @@
-use std::process::{Command, Output};
+use std::{
+    net::IpAddr,
+    process::{Command, Output},
+};
 
-pub fn cargo_fixture(test: &str) -> Output {
+use serde::{Deserialize, Serialize};
+
+pub fn cargo_fixture() -> CargoFixture {
     let exe = env!("CARGO_BIN_EXE_cargo-fixture");
-    let fixture = format!("fixture_{test}");
-    let callback = format!("{test}_callback");
-    Command::new(exe)
-        .args(["--fixture", &fixture])
-        .args(["--", "--nocapture", "--exact", &callback])
-        .output()
-        .unwrap()
+    CargoFixture {
+        cmd: Command::new(exe),
+    }
+}
+
+pub struct CargoFixture {
+    cmd: Command,
+}
+
+impl CargoFixture {
+    pub fn test(mut self, test: &str) -> Output {
+        let fixture = format!("fixture_{test}");
+        let callback = format!("{test}_callback");
+        self.cmd
+            .args([
+                "--fixture",
+                &fixture,
+                "--",
+                "--nocapture",
+                "--exact",
+                &callback,
+            ])
+            .output()
+            .unwrap()
+    }
 }
 
 pub trait OutputExt {
@@ -31,4 +54,10 @@ impl OutputExt for Output {
         let stderr = String::from_utf8_lossy(&self.stderr);
         assert!(stderr.contains(stderr_contains));
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct KvExample {
+    pub foo: String,
+    pub bar: IpAddr,
 }

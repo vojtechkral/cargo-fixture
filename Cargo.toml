@@ -55,3 +55,8 @@ smol-potat = "1.1.2"
 name = "fixture_basic"
 test = false
 harness = false
+
+[[test]]
+name = "fixture_kv"
+test = false
+harness = false

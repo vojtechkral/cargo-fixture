@@ -1,15 +1,13 @@
-mod common;
-
 use std::env;
 
 use cargo_fixture::{with_fixture, TestClient};
-use common::OutputExt;
 
-use crate::common::cargo_fixture;
+mod common;
+use common::{cargo_fixture, OutputExt as _};
 
 #[test]
 fn basic() {
-    cargo_fixture("basic").assert_success();
+    cargo_fixture().test("basic").assert_success();
 }
 
 #[with_fixture]

@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use futures_util::{pin_mut, select, FutureExt, StreamExt as _};
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use smol::{process::Command as SmolCommand, Task, Timer};
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
@@ -206,7 +206,7 @@ impl FixtureConnection {
     }
 
     async fn run_tests(&mut self) -> bool {
-        // TODO: Dump KV when tracin?
+        trace!("KV storage: {:?}", *self.kv_store.read().unwrap());
 
         let extra_test_args = mem::take(&mut self.extra_test_args);
         let extra_harness_args = mem::take(&mut self.extra_harness_args);

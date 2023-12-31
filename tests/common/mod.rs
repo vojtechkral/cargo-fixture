@@ -22,6 +22,8 @@ impl CargoFixture {
         let callback = format!("{test}_callback");
         self.cmd
             .args([
+                "-L",
+                "debug",
                 "--fixture",
                 &fixture,
                 "--",

@@ -7,7 +7,13 @@ use tokio_postgres::NoTls;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    // FIXME: WIP/testing
+
+    loop { std::thread::sleep_ms(1000); }
+
     let mut fixture = FixtureClient::connect().await.unwrap();
+
+    loop { std::thread::sleep_ms(1000); }
 
     // Configure the postgres docker container
     let mut dt = DockerTest::new()
@@ -41,8 +47,12 @@ async fn main() {
         // Tell the fixture we're ready to run tests.
         // This will return when cargo test call is complete.
         fixture.ready().await.unwrap();
+
+        eprintln!("Cleaning up docker resources...");
     })
     .await;
+
+    loop { std::thread::sleep_ms(1000); }
 }
 
 fn message_wait(message: &str) -> Box<dyn WaitFor> {

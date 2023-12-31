@@ -32,7 +32,7 @@ impl CargoMetadata {
             .output()
             .context("Could not run `cargo metadata`")?;
 
-        let status = output.status.as_result(|| "cargo metadata command failed");
+        let status = output.status.as_result("cargo metadata command failed");
         if status.is_err() {
             let _ = io::stderr().write_all(&output.stderr);
             status?

@@ -1,24 +1,31 @@
 use std::{
     ascii,
     ffi::OsStr,
-    fmt::{self, Display},
-    fs, ops,
+    fmt, fs, ops,
     path::Path,
     pin::Pin,
     process::{Command, ExitStatus},
-    task,
-    time::Duration,
+    task::{self, Poll},
+    time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, bail, Context as _, Ok, Result};
-use futures_util::{
-    future::{FusedFuture, Shared},
-    pin_mut, select, select_biased, Future, FutureExt,
-};
-use log::{log, warn, Level};
+use anyhow::{bail, Context as _, Ok, Result};
+use futures_util::{future::FusedFuture, ready, Future, StreamExt};
+use log::{error, log, warn, Level};
 use os_str_bytes::RawOsStr;
-use pin_project_lite::pin_project;
-use smol::Timer;
+use smol::channel;
+
+pub trait ResultExt {
+    fn log_error(self);
+}
+
+impl<T> ResultExt for Result<T> {
+    fn log_error(self) {
+        if let Err(err) = self {
+            error!("{err:?}")
+        }
+    }
+}
 
 pub trait CommandExt {
     fn display(&self) -> CommandPrint<'_>;
@@ -93,22 +100,15 @@ where
 }
 
 pub trait ExitStatusExt {
-    fn as_result<F, E>(&self, context: F) -> Result<()>
-    where
-        F: FnOnce() -> E,
-        E: Display;
+    fn as_result(&self, context: &str) -> Result<()>;
 }
 
 impl ExitStatusExt for ExitStatus {
-    fn as_result<F, E>(&self, context: F) -> Result<()>
-    where
-        F: FnOnce() -> E,
-        E: Display,
-    {
+    fn as_result(&self, context: &str) -> Result<()> {
         match self.code() {
             Some(0) => Ok(()),
-            Some(c) => bail!("{}: exit code: {c}", context()),
-            None => bail!("{}: killed by a signal", context()),
+            Some(c) => bail!("{context}: exit code: {c}"),
+            None => bail!("{context}: killed by a signal"),
         }
     }
 }
@@ -147,61 +147,62 @@ where
     }
 }
 
-pin_project! {
-    #[derive(Clone)]
-    pub struct CtrlC {
-        #[pin]
-        inner: Shared<async_ctrlc::CtrlC>
-    }
+/// Return a `Future` that resolves when Ctrl+C is pressed twice in a quick succession.
+pub fn ctrlc_2x() -> Result<CtrlC<2>> {
+    CtrlC::new()
 }
 
-impl CtrlC {
+pub struct CtrlC<const N: usize> {
+    rx: channel::Receiver<Instant>,
+    num_successions: usize,
+    last_timestamp: Instant,
+}
+
+impl<const N: usize> CtrlC<N> {
     pub fn new() -> Result<Self> {
-        let inner = async_ctrlc::CtrlC::new()
-            .context("Failed to create a SIGINT handler")?
-            .shared();
-        Ok(Self { inner })
+        let (tx, rx) = channel::bounded(10);
+
+        ctrlc::set_handler(move || {
+            let _ = tx.try_send(Instant::now());
+        })
+        .context("Failed to set up SIGINT handler")?;
+
+        Ok(Self {
+            rx,
+            num_successions: 1,
+            last_timestamp: Instant::now().checked_sub(Self::INTERVAL).unwrap(),
+        })
     }
 
-    pub async fn interruptible<F, R>(&mut self, fut: F) -> Result<R>
-    where
-        F: Future<Output = Result<R>>,
-    {
-        let mut ctrlc = self;
-        let fut = fut.fuse();
-        pin_mut!(fut);
-        select! {
-            res = fut => res,
-            _ = ctrlc => Err(Self::error()),
+    const INTERVAL: Duration = Duration::from_millis(400);
+}
+
+impl<const N: usize> Future for CtrlC<N> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.as_mut();
+
+        loop {
+            if this.num_successions >= N {
+                return Poll::Ready(());
+            }
+
+            if let Some(timestamp) = ready!(this.rx.poll_next_unpin(cx)) {
+                if timestamp.duration_since(this.last_timestamp) <= Self::INTERVAL {
+                    this.num_successions += 1;
+                }
+                this.last_timestamp = timestamp;
+            } else {
+                // Channel closed, never resolve
+                return Poll::Pending;
+            }
         }
     }
-
-    fn error() -> anyhow::Error {
-        anyhow!("Interrupted")
-    }
 }
 
-impl Future for CtrlC {
-    type Output = Result<()>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> task::Poll<Self::Output> {
-        self.project().inner.poll(cx).map(|_| Err(Self::error()))
-    }
-}
-
-impl FusedFuture for CtrlC {
+impl<const N: usize> FusedFuture for CtrlC<N> {
     fn is_terminated(&self) -> bool {
-        self.inner.is_terminated()
-    }
-}
-
-pub async fn timeout<F>(mut f: F, timeout: Duration) -> Option<F::Output>
-where
-    F: Future + FusedFuture + Unpin,
-{
-    let mut timer = Timer::after(timeout).fuse();
-    select_biased! {
-        _ = timer => None,
-        res = f => Some(res)
+        self.num_successions >= N
     }
 }

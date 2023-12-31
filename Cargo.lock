@@ -48,15 +48,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-ctrlc"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "907279f6e91a51c8ec7cac24711e8308f21da7c10c7700ca2f7e125694ed2df1"
-dependencies = [
- "ctrlc",
-]
-
-[[package]]
 name = "async-executor"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -259,12 +250,11 @@ name = "cargo-fixture"
 version = "0.9.0"
 dependencies = [
  "anyhow",
- "async-ctrlc",
  "cargo-fixture-lib",
+ "ctrlc",
  "futures-util",
  "log",
  "os_str_bytes",
- "pin-project-lite",
  "serde",
  "serde_json",
  "smol",
@@ -332,12 +322,12 @@ dependencies = [
 
 [[package]]
 name = "ctrlc"
-version = "3.4.1"
+version = "3.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82e95fbd621905b854affdc67943b043a0fbb6ed7385fd5a25650d19a8a6cfdf"
+checksum = "b467862cc8610ca6fc9a1532d7777cee0804e678ab45410897b9396495994a0b"
 dependencies = [
  "nix",
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

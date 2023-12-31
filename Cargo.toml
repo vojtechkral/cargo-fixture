@@ -29,11 +29,10 @@ thiserror = "1"
 
 [dependencies]
 anyhow = "1"
-async-ctrlc = "1.2.0"
+ctrlc = "3.4.2"
 futures-util = "0.3.29"
 log.workspace = true
 os_str_bytes = { version = "6.6", features = ["conversions"] }
-pin-project-lite = "0.2.13"
 serde_json.workspace = true
 serde.workspace = true
 smol.workspace = true
@@ -58,5 +57,20 @@ harness = false
 
 [[test]]
 name = "fixture_kv"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_panic1"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_panic2"
+test = false
+harness = false
+
+[[test]]
+name = "fixture_hang_cleanup"
 test = false
 harness = false

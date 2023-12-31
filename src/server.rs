@@ -2,20 +2,15 @@ use std::{
     collections::HashMap,
     env, mem,
     sync::{Arc, Mutex, RwLock},
-    time::{Duration, Instant},
 };
 
 use anyhow::{bail, Context, Result};
-use futures_util::{pin_mut, select, FutureExt, StreamExt as _};
 use log::{debug, info, trace, warn};
-use smol::{process::Command as SmolCommand, Task, Timer};
+use smol::{process::Command as SmolCommand, Task};
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
 
-use crate::{
-    config::Config,
-    utils::{CommandExt as _, CtrlC},
-};
+use crate::{config::Config, utils::CommandExt as _};
 
 mod server_socket;
 use server_socket::ServerSocket;
@@ -25,56 +20,55 @@ type KvStore = Arc<RwLock<HashMap<String, serde_json::Value>>>;
 pub struct Server {
     config: Arc<Config>,
     socket: ServerSocket,
-    ctrlc: CtrlC,
+    // ctrlc: CtrlC,
     kv_store: KvStore,
     test_conns: Mutex<Vec<Task<()>>>,
 }
 
 impl Server {
-    pub fn new(config: Arc<Config>, ctrlc: CtrlC) -> Result<Self> {
+    pub fn new(config: Arc<Config>) -> Result<Self> {
         let socket = ServerSocket::new(&config.socket_path)?;
         Ok(Self {
             config,
             socket,
-            ctrlc,
+            // ctrlc,
             kv_store: KvStore::default(),
             test_conns: Default::default(),
         })
     }
 
-    pub async fn run(mut self) -> Result<i32> {
-        let timer = smol::spawn(Self::watcher());
+    pub async fn accept_fixture(&self) -> Result<FixtureConnection> {
         let (socket, conn_type) = self
-            .ctrlc
-            .interruptible(self.socket.accept())
+            // .ctrlc
+            // .interruptible(self.socket.accept())
+            .socket
+            .accept()
             .await
             .context("Fixture connection error")?;
-        timer.cancel().await;
         if conn_type != ConnectionType::Fixture {
             bail!("Unexpected connection {conn_type:?}, expected fixture connection first");
         }
 
-        let fixture = FixtureConnection::new(socket, self.config.clone(), self.kv_store.clone());
-        let mut fixture = smol::spawn(fixture.run()).fuse();
-        let mut ctrlc = self.ctrlc.clone();
-
-        loop {
-            let conn = self.socket.accept().fuse();
-            pin_mut!(conn);
-            select! {
-                res = conn => self.handle_test_connection(res?).await?,
-                res = fixture => return res,
-                res = ctrlc => res?,
-            }
-        }
+        Ok(FixtureConnection::new(
+            socket,
+            self.config.clone(),
+            self.kv_store.clone(),
+        ))
     }
 
-    async fn watcher() {
-        let start = Instant::now();
-        let mut timer = Timer::interval(Duration::from_secs(10));
-        while timer.next().await.is_some() {
-            let delta = start.elapsed().as_secs();
-            warn!("fixture process has been running for {delta}s but has not connected yet");
+    // async fn watcher() {
+    //     let start = Instant::now();
+    //     let mut timer = Timer::interval(Duration::from_secs(10));
+    //     while timer.next().await.is_some() {
+    //         let delta = start.elapsed().as_secs();
+    //         warn!("fixture process has been running for {delta}s but has not connected yet");
+    //     }
+    // }
+
+    pub async fn accept_tests(self) -> Result<()> {
+        loop {
+            let conn = self.socket.accept().await?;
+            self.handle_test_connection(conn).await?;
         }
     }
 
@@ -112,14 +106,13 @@ impl Server {
 }
 
 /// Handles connection from the fixture process, spawns `cargo test` as part of this.
-struct FixtureConnection {
+pub struct FixtureConnection {
     socket: RpcSocket,
     config: Arc<Config>,
     kv_store: KvStore,
     extra_test_args: Vec<String>,
     extra_harness_args: Vec<String>,
     replace_exec: Vec<String>,
-    return_status: Option<i32>,
 }
 
 impl FixtureConnection {
@@ -131,15 +124,15 @@ impl FixtureConnection {
             extra_test_args: vec![],
             extra_harness_args: vec![],
             replace_exec: vec![],
-            return_status: None,
         }
     }
 
-    async fn run(mut self) -> Result<i32> {
+    pub async fn run(mut self) -> Result<i32> {
         loop {
             let Some(req) = self.socket.recv().await? else {
                 bail!("fixture program never called .ready(), tests not run");
             };
+
             let resp = match req {
                 Request::SetEnv { name, value } => self.handle_set_env(name, value),
                 Request::SetKeyValue { key, value } => self.handle_set_key_value(key, value),
@@ -147,14 +140,13 @@ impl FixtureConnection {
                 Request::SetExtraTestArgs { args } => self.handle_set_extra_test_args(args),
                 Request::SetExtraHarnessArgs { args } => self.handle_set_extra_harness_args(args),
                 Request::SetExec { exec } => self.handle_set_exec(exec),
-                Request::Ready => self.handle_ready().await,
+
+                Request::Ready => return self.run_tests().await,
+
                 hello @ Request::Hello { .. } => bail!("Unexpected Hello message: {hello:?}"),
             };
-            self.socket.send(resp).await?;
 
-            if let Some(status) = self.return_status {
-                return Ok(status);
-            }
+            self.socket.send(resp).await?;
         }
     }
 
@@ -200,12 +192,7 @@ impl FixtureConnection {
         Response::Ok
     }
 
-    async fn handle_ready(&mut self) -> Response {
-        let success = self.run_tests().await;
-        Response::TestsFinished { success }
-    }
-
-    async fn run_tests(&mut self) -> bool {
+    async fn run_tests(mut self) -> Result<i32> {
         trace!("KV storage: {:?}", *self.kv_store.read().unwrap());
 
         let extra_test_args = mem::take(&mut self.extra_test_args);
@@ -216,19 +203,16 @@ impl FixtureConnection {
             .test_cmd(extra_test_args, extra_harness_args, replace_exec);
         info!("running {}", test_cmd.display());
         let mut test_cmd = SmolCommand::from(test_cmd);
-        test_cmd
-            .status()
-            .await
-            .map(|status| {
-                debug!("test command: {status:?}");
-                self.return_status = status.code().or(Some(1));
-                status.success()
-            })
-            .map_err(|err| {
-                warn!("test command error: {err}");
-                err
-            })
-            .unwrap_or(false)
+        let status = test_cmd.status().await;
+        debug!("test command: {status:?}");
+
+        let success = status.as_ref().map(|s| s.success()).unwrap_or(false);
+        let resp = Response::TestsFinished { success };
+        self.socket.send(resp).await?;
+
+        status
+            .map(|s| s.code().unwrap_or(1))
+            .context("test command error")
     }
 }
 

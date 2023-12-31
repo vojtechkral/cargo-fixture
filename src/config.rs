@@ -60,6 +60,15 @@ impl Config {
             .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
             .stdin(Stdio::null());
 
+        #[cfg(unix)]
+        {
+            // Spawn the process with its own process group, rather than ours;
+            // this way it won't receive SIGINTs.
+            use std::os::unix::process::CommandExt as _;
+            cmd.process_group(0);
+        }
+        // FIXME: the same on Windows
+
         cmd
     }
 

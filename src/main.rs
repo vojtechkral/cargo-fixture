@@ -1,7 +1,7 @@
 use std::{env, process, sync::Arc};
 
-use anyhow::{bail, Result};
-use fixture_process::FixtureProcess;
+use anyhow::{bail, Context, Result};
+use fixture_program::FixtureProcess;
 use futures_util::{future::FusedFuture as _, pin_mut, select, FutureExt};
 use server::Server;
 
@@ -12,7 +12,7 @@ use crate::{
 
 mod cli;
 mod config;
-mod fixture_process;
+mod fixture_program;
 mod logger;
 mod server;
 mod utils;
@@ -20,11 +20,6 @@ mod utils;
 // TODO: tests
 // TODO: docs
 // TODO: Windows support (see cfg(unix))
-// FIXME: killing the fixture doesn't work - kills the cargo test wrapper around it
-//    - need to send SIGINT?
-//    - or run fixture binary directly? -> No way to get the binary from cargo :|
-//       - grep it out of the build output? -> ugly.
-//       - -> can be done cleanly with --message-format=json-render-diagnostics
 // FIXME: test args not passed (test name)
 
 const FIXTURE_FEATURE: &str = "_fixture"; // kept in sync with macro
@@ -57,13 +52,15 @@ async fn serve(config: Config) -> Result<i32> {
     let config = Arc::new(config);
 
     // Build fixture program
-    FixtureProcess::spawn_build(&config)?.await?;
+    let fixture_bin = fixture_program::build(&config)
+        .await
+        .context("Could not build fixture program")?;
 
     // Create a UDS server
     let server = Server::new(config.clone())?;
 
     // Run fixture program and accept its connection
-    let fixture_ps = FixtureProcess::spawn_run(&config)?;
+    let fixture_ps = fixture_program::run(&config, &fixture_bin)?;
     pin_mut!(fixture_ps);
     let busy_logger = FixtureProcess::busy_logger("connected");
 

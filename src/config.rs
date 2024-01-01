@@ -1,8 +1,8 @@
 use std::{
     env,
     ffi::OsString,
-    path::PathBuf,
-    process::{self, Command, Stdio},
+    path::{Path, PathBuf},
+    process::{self, Command},
 };
 
 mod cargo_meta;
@@ -11,7 +11,7 @@ use anyhow::Result;
 use log::debug;
 
 use self::cargo_meta::CargoMetadata;
-use crate::{cli::Cli, logger::LogLevel, utils::CommandExt, FIXTURE_FEATURE};
+use crate::{cli::Cli, FIXTURE_FEATURE};
 
 #[derive(Debug)]
 pub struct Config {
@@ -43,22 +43,26 @@ impl Config {
         })
     }
 
-    pub fn fixture_cmd(&self, run: bool) -> Command {
+    pub fn fixture_build_cmd(&self) -> Command {
         let mut cmd = Command::new(self.cargo_exe.clone());
 
-        cmd.arg("test")
-            .arg_if(run && self.cli.log_level < LogLevel::Debug, "-q")
-            .args(&self.cli.cargo_common_test)
-            .args(["--test", &self.cli.fixture_name])
-            .arg_if(!run, "--no-run")
-            .args(["--features", FIXTURE_FEATURE])
-            .arg("--")
-            .args_if(
-                run && !self.cli.fixture_args.is_empty(),
-                &self.cli.fixture_args,
-            )
-            .env("CARGO_FIXTURE_SOCKET", &self.socket_path)
-            .stdin(Stdio::null());
+        cmd.arg("test").args(&self.cli.cargo_common_test).args([
+            "--test",
+            &self.cli.fixture_name,
+            "--no-run",
+            "--features",
+            FIXTURE_FEATURE,
+            "--message-format=json-render-diagnostics",
+        ]);
+
+        cmd
+    }
+
+    pub fn fixture_run_cmd(&self, fixture_bin: &Path) -> Command {
+        let mut cmd = Command::new(fixture_bin);
+
+        cmd.args(&self.cli.fixture_args)
+            .env("CARGO_FIXTURE_SOCKET", &self.socket_path);
 
         #[cfg(unix)]
         {
@@ -99,10 +103,7 @@ impl Config {
             cmd
         };
 
-        cmd.env("CARGO_FIXTURE_SOCKET", &self.socket_path)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+        cmd.env("CARGO_FIXTURE_SOCKET", &self.socket_path);
 
         cmd
     }

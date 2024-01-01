@@ -4,7 +4,7 @@ use std::{
     fmt, fs, ops,
     path::Path,
     pin::Pin,
-    process::{Command, ExitStatus},
+    process::{Command, ExitStatus, Stdio},
     task::{self, Poll},
     time::{Duration, Instant},
 };
@@ -13,7 +13,7 @@ use anyhow::{bail, Context as _, Ok, Result};
 use futures_util::{future::FusedFuture, ready, Future, StreamExt};
 use log::{error, log, warn, Level};
 use os_str_bytes::RawOsStr;
-use smol::channel;
+use smol::{channel, process::Command as SmolCommand};
 
 pub trait ResultExt {
     fn log_error(self);
@@ -30,12 +30,9 @@ impl<T> ResultExt for Result<T> {
 pub trait CommandExt {
     fn display(&self) -> CommandPrint<'_>;
 
-    fn arg_if(&mut self, condition: bool, arg: impl AsRef<OsStr>) -> &mut Self;
-
-    fn args_if<I, S>(&mut self, condition: bool, args: I) -> &mut Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<OsStr>;
+    /// `SmolCommand::from()` won't take stdio config from `Command` (it can't),
+    /// this function performs the conversion and sets up stdio.
+    fn into_smol(self, stdin: Stdio, stdout: Stdio, stderr: Stdio) -> SmolCommand;
 }
 
 impl CommandExt for Command {
@@ -43,22 +40,10 @@ impl CommandExt for Command {
         CommandPrint(self)
     }
 
-    fn arg_if(&mut self, condition: bool, arg: impl AsRef<OsStr>) -> &mut Self {
-        if condition {
-            self.arg(arg);
-        }
-        self
-    }
-
-    fn args_if<I, S>(&mut self, condition: bool, args: I) -> &mut Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<OsStr>,
-    {
-        if condition {
-            self.args(args);
-        }
-        self
+    fn into_smol(self, stdin: Stdio, stdout: Stdio, stderr: Stdio) -> SmolCommand {
+        let mut cmd = SmolCommand::from(self);
+        cmd.stdin(stdin).stdout(stdout).stderr(stderr);
+        cmd
     }
 }
 

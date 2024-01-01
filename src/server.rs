@@ -1,12 +1,13 @@
 use std::{
     collections::HashMap,
     env, mem,
+    process::Stdio,
     sync::{Arc, Mutex, RwLock},
 };
 
 use anyhow::{bail, Context, Result};
 use log::{debug, info, trace, warn};
-use smol::{process::Command as SmolCommand, Task};
+use smol::Task;
 
 use cargo_fixture::rpc_socket::{ConnectionType, Request, Response, RpcSocket};
 
@@ -202,8 +203,10 @@ impl FixtureConnection {
             .config
             .test_cmd(extra_test_args, extra_harness_args, replace_exec);
         info!("running {}", test_cmd.display());
-        let mut test_cmd = SmolCommand::from(test_cmd);
-        let status = test_cmd.status().await;
+        let status = test_cmd
+            .into_smol(Stdio::inherit(), Stdio::inherit(), Stdio::inherit())
+            .status()
+            .await;
         debug!("test command: {status:?}");
 
         let success = status.as_ref().map(|s| s.success()).unwrap_or(false);

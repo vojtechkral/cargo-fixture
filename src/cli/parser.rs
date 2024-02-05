@@ -298,8 +298,10 @@ impl Parser {
             (flag_def.parse_fn)(&mut self)?;
 
             if self.current_flag.eq_value.is_some() {
-                // FIXME: wrong err msg:
-                bail!("Unrecognized flag: {}", self.take_current_flag().flag);
+                bail!(
+                    "Flag doesn't take a value: {}",
+                    self.take_current_flag().flag
+                );
             }
         }
 

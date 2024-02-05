@@ -2,7 +2,7 @@
 name = "cargo-fixture-example-docker"
 version = "0.9.0"
 authors = ["Vojtech Kral"]
-description = "FIXME: descr"
+description = "docker example for cargo-fixture"
 license = "Apache-2.0"
 edition = "2021"
 
@@ -15,7 +15,7 @@ _fixture = []
 
 [dev-dependencies]
 dockertest = "0.4.0"
-cargo-fixture-lib = { path = "../../crates/lib", features = ["tokio"] }  # FIXME: from crates
+cargo-fixture-lib = { version = "1", features = ["tokio"] }
 
 [[test]]
 name = "fixture"

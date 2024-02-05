@@ -2,7 +2,7 @@
 name = "cargo-fixture-example-http"
 version = "0.9.0"
 authors = ["Vojtech Kral"]
-description = "FIXME: descr"
+description = "HTTP example for cargo-fixture"
 license = "Apache-2.0"
 edition = "2021"
 
@@ -13,7 +13,7 @@ reqwest = { version = "0.11.23", default-features = false }
 _fixture = []
 
 [dev-dependencies]
-cargo-fixture-lib = { path = "../../crates/lib", features = ["tokio"] }  # FIXME: from crates
+cargo-fixture-lib = { version = "1", features = ["tokio"] }
 hyper = { version = "1.1.0", features = ["server", "http1"] }
 hyper-util = { version = "0.1.2", features = ["tokio"] }
 tokio = { version = "1.34.0", features = ["rt", "macros"] }

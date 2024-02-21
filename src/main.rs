@@ -64,7 +64,10 @@ async fn serve(config: Config) -> Result<i32> {
     let fixture_conn = loop {
         select! {
             res = server.accept_fixture().fuse() => break res?,
-            res = fixture_ps => res?,
+            res = fixture_ps => {
+                res?;
+                bail!("fixture program exited without connecting to fixture");
+            }
             _ = ctrlc_2x => fixture_ps.kill(),
         }
     };

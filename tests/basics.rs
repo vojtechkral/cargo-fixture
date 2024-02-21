@@ -58,6 +58,14 @@ async fn kv_callback(mut client: TestClient) {
 }
 
 #[test]
+fn early_exit() {
+    cargo_fixture()
+        .run_test("early_exit")
+        .output()
+        .assert_error("fixture program exited without connecting to fixture");
+}
+
+#[test]
 fn panic() {
     cargo_fixture()
         .run_test("panic_init")

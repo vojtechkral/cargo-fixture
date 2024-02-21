@@ -78,6 +78,11 @@ test = false
 harness = false
 
 [[test]]
+name = "fixture_early_exit"
+test = false
+harness = false
+
+[[test]]
 name = "fixture_panic_init"
 test = false
 harness = false

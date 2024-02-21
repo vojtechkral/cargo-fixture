@@ -7,7 +7,7 @@ use std::{
 
 mod cargo_meta;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use log::debug;
 
 use self::cargo_meta::CargoMetadata;
@@ -80,8 +80,13 @@ impl Config {
         extra_test_args: Vec<String>,
         extra_harness_args: Vec<String>,
         replace_exec: Vec<String>,
-    ) -> Command {
-        let mut cmd = if let Some(exec) = self.cli.exec.first() {
+    ) -> Result<Command> {
+        let mut cmd = if self.cli.shell {
+            let sh = env::var_os("SHELL").ok_or_else(|| {
+                anyhow!("The environment variable $SHELL is not set, needed by --shell")
+            })?;
+            Command::new(sh)
+        } else if let Some(exec) = self.cli.exec.first() {
             let mut cmd = Command::new(exec);
             cmd.args(&self.cli.exec[1..]);
             cmd
@@ -106,6 +111,6 @@ impl Config {
 
         cmd.env("CARGO_FIXTURE_SOCKET", &self.socket_path);
 
-        cmd
+        Ok(cmd)
     }
 }

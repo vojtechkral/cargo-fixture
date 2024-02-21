@@ -1,6 +1,6 @@
 use std::{env, ffi::OsString, process};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 use crate::logger::LogLevel;
 
@@ -15,6 +15,7 @@ def_flags!(
     --fixture [name]      parse_value(fixture_name) r#"Name of the fixture setup test (default: "fixture")"#,
     -A --arg [arg]        append_value_raw(fixture_args) "Pass an argument to the fixture test binary (can be used multiple times)",
     -x --exec [args...]   take_remaining(exec) "Instead of running cargo test [args...], run the specified command and pass it all remaining arguments",
+    --shell               set_flag(shell) "Instead of running cargo test, run $SHELL",
     -L [level]            parse_value(log_level) "Stderr logging level (choices: off, info, debug, trace, default: info)",
     -h --help             help "Print help",
     --version             version "Print version",
@@ -55,6 +56,7 @@ pub struct Cli {
     pub fixture_name: String,
     pub fixture_args: Vec<OsString>,
     pub exec: Vec<OsString>,
+    pub shell: bool,
     pub log_level: LogLevel,
     pub cargo_common_all: Vec<OsString>,
     pub cargo_common_test: Vec<OsString>,
@@ -63,6 +65,14 @@ pub struct Cli {
 }
 
 impl Cli {
+    pub fn check_conflicts(self) -> Result<Self> {
+        if self.shell && !self.exec.is_empty() {
+            bail!("--shell and -x/--exec cannot be used at the same time");
+        }
+
+        Ok(self)
+    }
+
     fn unknown_flag(&mut self, flag: OsString) {
         self.cargo_test_args.push(flag);
     }
@@ -74,6 +84,7 @@ impl Default for Cli {
             fixture_name: "fixture".to_string(),
             fixture_args: vec![],
             exec: vec![],
+            shell: false,
             log_level: LogLevel::default(),
             cargo_common_all: vec![],
             cargo_common_test: vec![],
@@ -86,6 +97,7 @@ impl Default for Cli {
 pub fn parse() -> Result<Cli> {
     Parser::new(FLAGS, CARGO_FLAGS, env::args_os())
         .parse()
+        .and_then(|cli| cli.check_conflicts().map_err(parser::Error::Parsing))
         .map_err(|err| {
             let usage = Parser::usage();
             if err.severity() == 0 {

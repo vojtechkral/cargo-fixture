@@ -187,7 +187,7 @@ impl FixtureConnection {
         let replace_exec = mem::take(&mut self.replace_exec);
         let test_cmd = self
             .config
-            .test_cmd(extra_test_args, extra_harness_args, replace_exec);
+            .test_cmd(extra_test_args, extra_harness_args, replace_exec)?;
         info!("running {}", test_cmd.display());
         let status = test_cmd
             .into_smol(Stdio::inherit(), Stdio::inherit(), Stdio::inherit())

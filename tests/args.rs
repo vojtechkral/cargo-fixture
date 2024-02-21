@@ -160,3 +160,8 @@ fn args() {
         &["exec-cli-arg1", "exec-cli-arg2"],
     );
 }
+
+#[test]
+fn shell() {
+    cargo_fixture().run_assert_shell();
+}

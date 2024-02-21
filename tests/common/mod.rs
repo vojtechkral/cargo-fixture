@@ -161,6 +161,32 @@ impl CargoFixture {
         );
     }
 
+    pub fn run_assert_shell(mut self) {
+        let print_args_exe = self.print_args_exe();
+
+        let report = self
+            .cmd
+            .args([
+                "-L",
+                "debug",
+                "--fixture",
+                "fixture_args",
+                "-A",
+                "report",
+                "--shell",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .env("SHELL", &print_args_exe)
+            .output()
+            .unwrap()
+            .parse_args_report();
+
+        assert!(report.fixture_args.is_empty(), "{report:?}");
+        assert_eq!(report.test_args, &[print_args_exe.as_str()], "{report:?}");
+    }
+
     pub fn print_args_exe(&mut self) -> String {
         self.print_args_exe
             .get_or_insert_with(|| {

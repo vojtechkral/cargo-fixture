@@ -91,6 +91,7 @@ macro_rules! def_flags {
     };
 
     // Actions
+    (@action set_flag($field:ident)) => { &|parser| { parser.set_flag(|cli| { &mut cli.$field }) } };
     (@action parse_value($field:ident)) => { &|parser| { parser.parse_value(|cli| { &mut cli.$field }) } };
     (@action append_value_raw($field:ident)) => { &|parser| { parser.append_value_raw(|cli| { &mut cli.$field }) } };
     (@action forward($field:ident)) => { &|parser| { parser.forward(|cli| { &mut cli.$field }) } };

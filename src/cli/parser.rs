@@ -341,6 +341,11 @@ impl Parser {
 
     // flag parse fns
 
+    pub fn set_flag(&mut self, field: impl Fn(&mut Cli) -> &mut bool) -> ParseResult<()> {
+        *field(&mut self.cli) = true;
+        Ok(())
+    }
+
     pub fn parse_value<T>(&mut self, field: impl Fn(&mut Cli) -> &mut T) -> ParseResult<()>
     where
         T: FromStr,

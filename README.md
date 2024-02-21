@@ -98,6 +98,8 @@ cargo fixture -x sh
 
 This will ready the fixture and then enter a shell, in which you can inspect whether the fixture environment is prepared correctly, interact with it, or even run `cargo test` and interact with the environment post-tests.
 
+Alternatively, the shorthand `cargo fixture --shell` can be used, which is equivalent to `cargo fixture -x "$SHELL"`.
+
 ### Platform support
 
 Async runtime: [Tokio](https://tokio.rs/), [smol](https://docs.rs/smol).

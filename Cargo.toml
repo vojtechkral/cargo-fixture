@@ -1,12 +1,18 @@
-[package]
-name = "cargo-fixture"
-version = "1.0.0"
+[workspace.package]
+version = "1.1.0"
 authors = ["Vojtech Kral"]
-description = "Surround cargo test with arbitrary Rust setup and teardown code."
 license = "Apache-2.0"
 keywords = ["rust", "cargo", "testing"]
-edition = "2021"
 
+[package]
+name = "cargo-fixture"
+description = "Surround cargo test with arbitrary Rust setup and teardown code."
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+edition = "2021"
 rust-version = "1.65"
 
 [[bin]]

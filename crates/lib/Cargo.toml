@@ -1,12 +1,12 @@
 [package]
 name = "cargo-fixture-lib"
-version = "1.0.0"
-authors = ["Vojtech Kral"]
 description = "Support library for the cargo-fixture cargo extension"
-license = "Apache-2.0"
-keywords = ["rust", "cargo", "testing"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
 
+edition = "2021"
 rust-version = "1.65"
 
 [lib]

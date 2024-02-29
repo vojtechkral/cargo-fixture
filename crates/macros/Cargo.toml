@@ -1,10 +1,11 @@
 [package]
 name = "cargo-fixture-macros"
-version = "1.0.0"
-authors = ["Vojtech Kral <vojtech@kral.pm>"]
 description = "Macros for the cargo-fixture cargo extension"
-license = "Apache-2.0"
-keywords = ["rust", "cargo", "testing"]
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+
 edition = "2021"
 
 [lib]

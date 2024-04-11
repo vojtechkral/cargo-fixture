@@ -250,7 +250,7 @@ name = "cargo-fixture"
 version = "1.1.0"
 dependencies = [
  "anyhow",
- "cargo-fixture-lib 1.0.0",
+ "cargo-fixture-lib 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc",
  "futures-util",
  "log",
@@ -267,25 +267,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-lib"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b70a29a142d3a6318f641f22820dcdc8193b131b64ac25da7316a06b5e8dd4b"
-dependencies = [
- "cargo-fixture-macros 0.9.0",
- "log",
- "serde",
- "serde_json",
- "smol",
- "strum",
- "thiserror",
- "uds_windows",
-]
-
-[[package]]
-name = "cargo-fixture-lib"
 version = "1.1.0"
 dependencies = [
- "cargo-fixture-macros 0.9.0",
+ "cargo-fixture-macros 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "serde",
  "serde_json",
@@ -293,6 +277,22 @@ dependencies = [
  "strum",
  "thiserror",
  "tokio",
+ "uds_windows",
+]
+
+[[package]]
+name = "cargo-fixture-lib"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b95ac6760c69db201ae5ec9ef0420658690f5c2129d2248f495eea869ea602f"
+dependencies = [
+ "cargo-fixture-macros 0.9.0",
+ "log",
+ "serde",
+ "serde_json",
+ "smol",
+ "strum",
+ "thiserror",
  "uds_windows",
 ]
 
@@ -310,6 +310,17 @@ dependencies = [
 [[package]]
 name = "cargo-fixture-macros"
 version = "1.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.41",
+]
+
+[[package]]
+name = "cargo-fixture-macros"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9be690228ec050ee135d7ec53a05ea1f4a0ee17e0e5e302610925799bb5126"
 dependencies = [
  "proc-macro2",
  "quote",

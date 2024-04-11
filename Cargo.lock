@@ -247,10 +247,10 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cargo-fixture"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
- "cargo-fixture-lib 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo-fixture-lib 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc",
  "futures-util",
  "log",
@@ -267,9 +267,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-lib"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
- "cargo-fixture-macros 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo-fixture-macros 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "serde",
  "serde_json",
@@ -282,11 +282,11 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-lib"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b95ac6760c69db201ae5ec9ef0420658690f5c2129d2248f495eea869ea602f"
+checksum = "422b6ef871bb2de8684aa930b90c8ebbbfb32856efe2e040a9449a984b7d8620"
 dependencies = [
- "cargo-fixture-macros 0.9.0",
+ "cargo-fixture-macros 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "serde",
  "serde_json",
@@ -298,9 +298,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-macros"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "834cacfca0a1f2381ca5e73928c012cee488842d9be33ff3e260e91b11eae955"
+version = "1.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -309,18 +307,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-macros"
-version = "1.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.58",
-]
-
-[[package]]
-name = "cargo-fixture-macros"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c9be690228ec050ee135d7ec53a05ea1f4a0ee17e0e5e302610925799bb5126"
+checksum = "c248806d0cc8aedc1156153333ee1429492d76cabfddfa6a362f1454d8ab5e36"
 dependencies = [
  "proc-macro2",
  "quote",

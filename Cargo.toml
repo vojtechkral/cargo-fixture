@@ -52,6 +52,10 @@ cargo-fixture-lib = { version = "=1.0.0", features = ["smol"] }
 
 # Tests
 
+# [patch.'crates-io']
+# cargo-fixture-lib = { path = 'crates/lib' }
+# cargo-fixture-macros = { path = 'crates/macros' }
+
 [dev-dependencies]
 smol-potat = "1.1.2"
 [target.'cfg(unix)'.dev-dependencies]

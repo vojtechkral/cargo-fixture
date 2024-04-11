@@ -36,10 +36,11 @@ pub enum Request {
         connection_type: ConnectionType,
     },
     SetEnv {
+        // TODO: support make this an array when bumping RPC version
+        // cf. FixtureClient::set_env_vars()
         name: String,
         value: String,
     },
-    // TODO: naming of this stuff?
     SetKeyValue {
         key: String,
         value: serde_json::Value,

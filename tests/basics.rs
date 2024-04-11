@@ -24,8 +24,9 @@ fn env_var() {
 #[with_fixture]
 #[smol_potat::test]
 async fn env_var_callback(_client: TestClient) {
-    let foo = env::var("FOO").unwrap();
-    assert_eq!(foo, "bar");
+    assert_eq!(env::var("FOO").unwrap(), "foo");
+    assert_eq!(env::var("BAR").unwrap(), "bar");
+    assert_eq!(env::var("BAZ").unwrap(), "baz");
     confirm_callback_ran("env_var");
 }
 

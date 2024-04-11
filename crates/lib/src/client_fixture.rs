@@ -37,6 +37,19 @@ impl FixtureClient {
         self.socket.call(req).await?.as_ok()
     }
 
+    /// Request that multiple environment variables be set for `cargo test`.
+    pub async fn set_env_vars(
+        &mut self,
+        vars: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    ) -> Result<()> {
+        // TODO: batch this when bumping RPC version
+        for (name, value) in vars {
+            self.set_env_var(name, value).await?;
+        }
+
+        Ok(())
+    }
+
     /// Set additional CLI arguments to be passed to `cargo test`.
     ///
     /// No that these are arguments intended for the `cargo test` command itself, to pass arguments to the test binary,

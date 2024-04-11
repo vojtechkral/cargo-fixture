@@ -97,7 +97,11 @@ impl Config {
         } else {
             let mut cmd = Command::new(self.cargo_exe.clone());
             // NB. --features is additive
-            cmd.args(["test", "--features", FIXTURE_FEATURE]);
+            if !self.cli.nextest {
+                cmd.args(["test", "--features", FIXTURE_FEATURE])
+            } else {
+                cmd.args(["nextest", "run", "--features", FIXTURE_FEATURE])
+            };
 
             cmd.args(&self.cli.cargo_common_all)
                 .args(&self.cli.cargo_common_test)

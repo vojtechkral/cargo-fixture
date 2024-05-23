@@ -14,7 +14,7 @@ license.workspace = true
 keywords.workspace = true
 
 edition = "2021"
-rust-version = "1.69"
+rust-version = "1.74"
 
 [[bin]]
 name = "cargo-fixture"

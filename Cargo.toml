@@ -41,7 +41,7 @@ anyhow = "1"
 ctrlc = "3.4.2"
 futures-util = "0.3.29"
 log.workspace = true
-os_str_bytes = { version = "6.6", features = ["conversions"] }
+os_str_bytes = { version = "7", features = ["conversions"] }
 serde_json.workspace = true
 serde.workspace = true
 smol.workspace = true
@@ -60,7 +60,7 @@ cargo-fixture-lib = { version = "=1.2.0", features = ["smol"] }
 [dev-dependencies]
 smol-potat = "1.1.2"
 [target.'cfg(unix)'.dev-dependencies]
-nix = { version = "0.27.1", features = ["signal"] }
+nix = { version = "0.28", features = ["signal"] }
 
 [features]
 _fixture = []

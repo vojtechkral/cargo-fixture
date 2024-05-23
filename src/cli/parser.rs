@@ -168,11 +168,10 @@ where
             // Positionals, "--", and "-" taken care of...
 
             let flag = RawOsStr::new(&arg);
-            let flag = &*flag;
             // Try to extract a value passed using the --flag=value syntax:
             let (flag, eq_value) = flag
                 .split_once("=")
-                .map(|(flag, eq_value)| (flag, Some(eq_value.to_os_str().into_owned())))
+                .map(|(flag, eq_value)| (flag, Some(eq_value.as_os_str().to_owned())))
                 .unwrap_or((flag, None));
 
             // The flag part needs to be unicode

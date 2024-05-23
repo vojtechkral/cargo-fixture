@@ -1,7 +1,7 @@
 use std::{
     ascii,
     ffi::OsStr,
-    fmt, fs, ops,
+    fmt, fs,
     path::Path,
     pin::Pin,
     process::{Command, ExitStatus, Stdio},
@@ -115,10 +115,10 @@ pub trait OsStrExt {
 
 impl<T> OsStrExt for T
 where
-    T: ops::Deref<Target = OsStr>,
+    T: AsRef<OsStr>,
 {
     fn starts_with(&self, c: char) -> bool {
-        self.to_string_lossy().starts_with(c)
+        self.as_ref().to_string_lossy().starts_with(c)
     }
 
     fn to_escaped(&self) -> String {

@@ -67,7 +67,7 @@ pub fn run(config: &Config, fixture_bin: &Path) -> Result<FixtureProcess> {
     debug!("running {}", cmd.display());
 
     let mut child = cmd
-        .into_smol(Stdio::null(), Stdio::null(), Stdio::inherit())
+        .into_smol(Stdio::null(), Stdio::inherit(), Stdio::inherit())
         .spawn()
         .with_context(|| "error running fixture program".to_string())?;
 

@@ -12,13 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: actions/checkout@v4
       - name: Install rustfmt
         run: rustup component add rustfmt
       - name: Perform format check
@@ -35,21 +29,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
-          override: true
+        uses: actions/checkout@v4
+      # - name: Setup Rust toolchain
+      #   uses: actions-rs/toolchain@v1
+      #   with:
+      #     toolchain: stable
+      #     components: clippy
+      #     override: true
       - name: Cache cargo tools
         id: cargo-tools-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: cargo-tools
           key: lint-tools-${{ env.CARGO_OUTDATED }}-${{ env.CARGO_AUDIT }}
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/.crates.toml
@@ -93,15 +87,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: actions/checkout@v4
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/.crates.toml
@@ -116,7 +104,7 @@ jobs:
       - name: Test
         run: cargo test --locked -- --nocapture
       - name: Upload linux binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cargo-fixture
           path: target/debug/cargo-fixture
@@ -128,15 +116,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: actions/checkout@v4
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/.crates.toml
@@ -152,7 +134,7 @@ jobs:
         # tests must be run in one thread otherwise they attempt to overwrite each other's exe while building
         run: cargo test --locked -- --nocapture --test-threads=1
       - name: Upload linux binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cargo-fixture-exe
           path: target/debug/cargo-fixture.exe
@@ -164,18 +146,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Extract MSRV
         id: get-msrv
         run: echo msrv=$(yq .package.rust-version Cargo.toml -oy) | tee -a "$GITHUB_OUTPUT"
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ steps.get-msrv.outputs.msrv }}
-          override: true
+        run:  rustup toolchain add --profile=minimal ${{ steps.get-msrv.outputs.msrv }}
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/.crates.toml
@@ -185,11 +163,10 @@ jobs:
             ~/.cargo/registry/cache
             target
           key: msrv-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-      - name: Perform MSRV check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --locked
+      - name: Perform MSRV check (smol)
+        run: cargo +${{ steps.get-msrv.outputs.msrv }} check --workspace --tests --locked -F smol
+      - name: Perform MSRV check (tokio)
+        run: cargo +${{ steps.get-msrv.outputs.msrv }} check --workspace --tests --locked -F tokio
 
   examples-linux:
     name: Run examples on Linux
@@ -197,15 +174,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: actions/checkout@v4
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/.crates.toml
@@ -217,7 +188,7 @@ jobs:
             examples/http/target
           key: examples-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - name: Get cargo-fixture
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cargo-fixture
           path: ~/.cargo/bin
@@ -238,15 +209,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: actions/checkout@v4
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/.crates.toml
@@ -258,7 +223,7 @@ jobs:
             examples/http/target
           key: examples-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - name: Get cargo-fixture
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cargo-fixture-exe
           path: ~/.cargo/bin

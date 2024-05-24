@@ -243,10 +243,10 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cargo-fixture"
-version = "1.2.0"
+version = "1.2.2"
 dependencies = [
  "anyhow",
- "cargo-fixture-lib 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo-fixture-lib 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc",
  "futures-util",
  "log",
@@ -263,9 +263,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-lib"
-version = "1.2.0"
+version = "1.2.2"
 dependencies = [
- "cargo-fixture-macros 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo-fixture-macros 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "serde",
  "serde_json",
@@ -278,11 +278,11 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-lib"
-version = "1.2.0"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "422b6ef871bb2de8684aa930b90c8ebbbfb32856efe2e040a9449a984b7d8620"
+checksum = "d2c82e166babc81c53f3c29f17d922aa926464c6d0f4fdc8b6b09a7f80685f7e"
 dependencies = [
- "cargo-fixture-macros 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo-fixture-macros 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "serde",
  "serde_json",
@@ -294,7 +294,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-macros"
-version = "1.2.0"
+version = "1.2.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -303,9 +303,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-fixture-macros"
-version = "1.2.0"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c248806d0cc8aedc1156153333ee1429492d76cabfddfa6a362f1454d8ab5e36"
+checksum = "13b5345b1edfa05b665ffbdbb7ce3827b9b7b7d48252fb3f16189c2995711a7a"
 dependencies = [
  "proc-macro2",
  "quote",
